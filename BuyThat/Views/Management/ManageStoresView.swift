@@ -86,11 +86,13 @@ struct ManageStoresView: View {
             ) { _ in
                 showingCreateSheet = false
             }
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingStore) { store in
             StoreFormView(store: store) { _ in
                 editingStore = nil
             }
+            .presentationDragIndicator(.visible)
         }
     }
 

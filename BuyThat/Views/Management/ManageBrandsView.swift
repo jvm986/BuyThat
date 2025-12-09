@@ -46,6 +46,11 @@ struct ManageBrandsView: View {
                         HStack {
                             Text(brand.name)
                             Spacer()
+                            if let variants = brand.variants, !variants.isEmpty {
+                                Text("\(variants.count)")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         .contentShape(Rectangle())
                     }
@@ -86,11 +91,13 @@ struct ManageBrandsView: View {
             ) { _ in
                 showingCreateSheet = false
             }
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingBrand) { brand in
             BrandFormView(brand: brand) { _ in
                 editingBrand = nil
             }
+            .presentationDragIndicator(.visible)
         }
     }
 

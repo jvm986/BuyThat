@@ -18,6 +18,8 @@ struct StoreFormView: View {
     let onSave: (Store) -> Void
 
     @State private var name: String
+    @State private var showingCreateStoreInfo = false
+    @State private var editingStoreInfo: StoreVariantInfo?
 
     init(store: Store? = nil, prefillName: String? = nil, onSave: @escaping (Store) -> Void) {
         self.store = store
@@ -26,11 +28,55 @@ struct StoreFormView: View {
         _name = State(initialValue: store?.name ?? prefillName ?? "")
     }
 
+    private var sortedStoreInfos: [StoreVariantInfo] {
+        (store?.storeVariantInfos ?? []).sorted { ($0.variant?.displayName ?? "") < ($1.variant?.displayName ?? "") }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Name", text: $name)
-                    .focused($isNameFocused)
+                Section {
+                    TextField("Name", text: $name)
+                        .focused($isNameFocused)
+                }
+
+                if store != nil {
+                    Section {
+                        if sortedStoreInfos.isEmpty {
+                            Text("No products in this store")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(sortedStoreInfos) { info in
+                                Button {
+                                    editingStoreInfo = info
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading) {
+                                            Text(info.variant?.displayName ?? "Unknown")
+                                            if let price = info.formattedPrice {
+                                                Text(price)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        Spacer()
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .onDelete(perform: deleteStoreInfos)
+                        }
+
+                        Button {
+                            showingCreateStoreInfo = true
+                        } label: {
+                            Label("Add Product", systemImage: "plus.circle.fill")
+                        }
+                    } header: {
+                        Text("Products (\(sortedStoreInfos.count))")
+                    }
+                }
             }
             .navigationTitle(store == nil ? "New Store" : "Edit Store")
             .onAppear {
@@ -45,7 +91,24 @@ struct StoreFormView: View {
                         .disabled(name.isEmpty)
                 }
             }
+            .sheet(isPresented: $showingCreateStoreInfo) {
+                StoreVariantInfoFormView { _ in
+                    showingCreateStoreInfo = false
+                }
+            }
+            .sheet(item: $editingStoreInfo) { info in
+                StoreVariantInfoFormView(storeVariantInfo: info) { _ in
+                    editingStoreInfo = nil
+                }
+            }
         }
+    }
+
+    private func deleteStoreInfos(at offsets: IndexSet) {
+        for index in offsets {
+            modelContext.delete(sortedStoreInfos[index])
+        }
+        try? modelContext.save()
     }
 
     private func save() {

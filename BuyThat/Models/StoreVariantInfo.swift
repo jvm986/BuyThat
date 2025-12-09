@@ -14,17 +14,17 @@ final class StoreVariantInfo {
     var dateCreated: Date
     var dateModified: Date
 
-    @Relationship(deleteRule: .nullify)
+    // Store the conversion factor to handle deleted pricingUnit references
+    // This is the conversionToBase value from the pricingUnit at the time of price entry
+    // If nil, price is relative to base unit
+    var pricingUnitConversion: Double?
+
     var variant: ProductVariant?
 
     @Relationship(deleteRule: .nullify)
     var store: Store?
 
-    @Relationship(deleteRule: .nullify)
     var pricingUnit: PurchaseUnit?
-
-    @Relationship(deleteRule: .cascade, inverse: \PriceHistory.storeVariantInfo)
-    var priceHistory: [PriceHistory]?
 
     @Relationship(deleteRule: .nullify, inverse: \ShoppingListItem.storeVariantInfo)
     var shoppingListItems: [ShoppingListItem]?
@@ -34,6 +34,8 @@ final class StoreVariantInfo {
         self.store = store
         self.pricePerUnit = pricePerUnit
         self.pricingUnit = pricingUnit
+        // Store the conversion factor so we can still calculate prices if pricingUnit is deleted
+        self.pricingUnitConversion = pricingUnit?.conversionToBase
         self.dateCreated = Date()
         self.dateModified = Date()
     }
@@ -57,7 +59,8 @@ extension StoreVariantInfo {
 
         // Get conversion factors
         // conversionToBase means: X purchase_units = 1 base_unit
-        let sourceFactor = pricingUnit?.conversionToBase ?? 1.0
+        // Use stored conversion factor if pricingUnit was deleted, otherwise use current value
+        let sourceFactor = pricingUnitConversion ?? 1.0
         let targetFactor = purchaseUnit.conversionToBase
 
         // To convert price: we need to invert the conversion factors
@@ -84,6 +87,8 @@ extension StoreVariantInfo {
 
         guard let priceStr = formatter.string(from: price as NSDecimalNumber) else { return nil }
 
+        // If pricingUnit exists, use it; otherwise fall back to base unit
+        // (The stored pricingUnitConversion is already factored into the price)
         let unitName = pricingUnit?.displayName ?? variant?.baseUnit.symbol ?? "unit"
         return "\(priceStr)/\(unitName)"
     }

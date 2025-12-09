@@ -14,17 +14,18 @@ final class ShoppingListItem {
     var isPurchased: Bool
     var dateAdded: Date
 
-    @Relationship(deleteRule: .nullify)
     var list: ShoppingList?
 
-    @Relationship(deleteRule: .nullify)
     var storeVariantInfo: StoreVariantInfo?
+    var variant: ProductVariant?
+    var product: Product?
 
-    @Relationship(deleteRule: .nullify)
     var purchaseUnit: PurchaseUnit?
 
-    init(storeVariantInfo: StoreVariantInfo?, quantity: String = "1", purchaseUnit: PurchaseUnit? = nil, list: ShoppingList? = nil) {
+    init(storeVariantInfo: StoreVariantInfo? = nil, variant: ProductVariant? = nil, product: Product? = nil, quantity: String = "1", purchaseUnit: PurchaseUnit? = nil, list: ShoppingList? = nil) {
         self.storeVariantInfo = storeVariantInfo
+        self.variant = variant
+        self.product = product
         self.quantity = quantity
         self.purchaseUnit = purchaseUnit
         self.list = list
@@ -34,6 +35,26 @@ final class ShoppingListItem {
 }
 
 extension ShoppingListItem {
+    // Get the effective product (priority: storeVariantInfo > variant > product)
+    var effectiveProduct: Product? {
+        storeVariantInfo?.variant?.product ?? variant?.product ?? product
+    }
+
+    // Get the effective variant (priority: storeVariantInfo > variant)
+    var effectiveVariant: ProductVariant? {
+        storeVariantInfo?.variant ?? variant
+    }
+
+    // Get the store if available
+    var effectiveStore: Store? {
+        storeVariantInfo?.store
+    }
+
+    // Get base unit from variant or default to units
+    var effectiveBaseUnit: MeasurementUnit {
+        effectiveVariant?.baseUnit ?? .units
+    }
+
     var estimatedPrice: Decimal? {
         guard let storeInfo = storeVariantInfo else { return nil }
 

@@ -93,11 +93,13 @@ struct ManageProductsView: View {
             ) { _ in
                 showingCreateSheet = false
             }
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingProduct) { product in
             ProductFormView(product: product) { _ in
                 editingProduct = nil
             }
+            .presentationDragIndicator(.visible)
         }
     }
 

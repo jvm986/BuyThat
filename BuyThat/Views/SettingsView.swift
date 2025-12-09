@@ -26,6 +26,7 @@ struct SettingsView: View {
                         Image(systemName: "tag.fill")
                     }
                 }
+                .accessibilityIdentifier("TagsButton")
 
                 NavigationLink {
                     ManageBrandsView()
@@ -41,6 +42,7 @@ struct SettingsView: View {
                         Image(systemName: "building.2.fill")
                     }
                 }
+                .accessibilityIdentifier("BrandsButton")
 
                 NavigationLink {
                     ManageProductsView()
@@ -56,6 +58,7 @@ struct SettingsView: View {
                         Image(systemName: "cube.fill")
                     }
                 }
+                .accessibilityIdentifier("ProductsButton")
 
                 NavigationLink {
                     ManageProductVariantsView()
@@ -71,6 +74,7 @@ struct SettingsView: View {
                         Image(systemName: "square.stack.3d.up.fill")
                     }
                 }
+                .accessibilityIdentifier("ProductVariantsButton")
             } header: {
                 Text("Products")
             }
@@ -90,6 +94,7 @@ struct SettingsView: View {
                         Image(systemName: "storefront.fill")
                     }
                 }
+                .accessibilityIdentifier("StoresButton")
 
                 NavigationLink {
                     ManageStoreVariantInfoView()
@@ -105,6 +110,7 @@ struct SettingsView: View {
                         Image(systemName: "cart.fill")
                     }
                 }
+                .accessibilityIdentifier("StoreItemsButton")
             } header: {
                 Text("Stores")
             }

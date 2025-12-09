@@ -22,8 +22,7 @@ struct PreviewContainer {
             ProductVariant.self,
             PurchaseUnit.self,
             Brand.self,
-            Tag.self,
-            PriceHistory.self
+            Tag.self
         ])
 
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
@@ -83,20 +82,20 @@ struct PreviewContainer {
 
         // Create Purchase Units
         let milkBottleUnit = PurchaseUnit(
-            unit: .milliliters,
-            conversionToBase: 1000,
+            unit: .liters,
+            conversionToBase: 1,
             isInverted: false,
             variant: milkVariant
         )
         let breadPackageUnit = PurchaseUnit(
-            unit: .grams,
-            conversionToBase: 500,
+            unit: .kilograms,
+            conversionToBase: 0.5,
             isInverted: false,
             variant: breadVariant
         )
         let tofuPackageUnit = PurchaseUnit(
-            unit: .grams,
-            conversionToBase: 400,
+            unit: .kilograms,
+            conversionToBase: 0.4,
             isInverted: false,
             variant: tofuVariant
         )

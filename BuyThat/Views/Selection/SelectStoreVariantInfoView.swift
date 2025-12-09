@@ -109,11 +109,13 @@ struct SelectStoreVariantInfoView: View {
                 onSelect(newInfo)
                 dismiss()
             }
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingInfo) { info in
             StoreVariantInfoFormView(storeVariantInfo: info) { _ in
                 editingInfo = nil
             }
+            .presentationDragIndicator(.visible)
         }
     }
 }

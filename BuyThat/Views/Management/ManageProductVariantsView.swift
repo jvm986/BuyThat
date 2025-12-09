@@ -17,12 +17,10 @@ struct ManageProductVariantsView: View {
     @State private var editingVariant: ProductVariant?
 
     private var filteredVariants: [ProductVariant] {
-        if searchText.isEmpty {
-            return variants
-        }
-        return variants.filter { variant in
+        let filtered = searchText.isEmpty ? variants : variants.filter { variant in
             variant.displayName.localizedCaseInsensitiveContains(searchText)
         }
+        return filtered.sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
     }
 
     var body: some View {
@@ -54,11 +52,13 @@ struct ManageProductVariantsView: View {
             ProductVariantFormView { _ in
                 showingCreateSheet = false
             }
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingVariant) { variant in
             ProductVariantFormView(variant: variant) { _ in
                 editingVariant = nil
             }
+            .presentationDragIndicator(.visible)
         }
     }
 

@@ -18,6 +18,8 @@ struct BrandFormView: View {
     let onSave: (Brand) -> Void
 
     @State private var name: String
+    @State private var showingCreateVariant = false
+    @State private var editingVariant: ProductVariant?
 
     init(brand: Brand? = nil, prefillName: String? = nil, onSave: @escaping (Brand) -> Void) {
         self.brand = brand
@@ -26,11 +28,49 @@ struct BrandFormView: View {
         _name = State(initialValue: brand?.name ?? prefillName ?? "")
     }
 
+    private var sortedVariants: [ProductVariant] {
+        (brand?.variants ?? []).sorted { $0.displayName < $1.displayName }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Name", text: $name)
-                    .focused($isNameFocused)
+                Section {
+                    TextField("Name", text: $name)
+                        .focused($isNameFocused)
+                        .accessibilityIdentifier("BrandName")
+                }
+
+                if brand != nil {
+                    Section {
+                        if sortedVariants.isEmpty {
+                            Text("No product variants for this brand")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(sortedVariants) { variant in
+                                Button {
+                                    editingVariant = variant
+                                } label: {
+                                    HStack {
+                                        Text(variant.displayName)
+                                        Spacer()
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .onDelete(perform: deleteVariants)
+                        }
+
+                        Button {
+                            showingCreateVariant = true
+                        } label: {
+                            Label("Add Product Variant", systemImage: "plus.circle.fill")
+                        }
+                    } header: {
+                        Text("Product Variants (\(sortedVariants.count))")
+                    }
+                }
             }
             .navigationTitle(brand == nil ? "New Brand" : "Edit Brand")
             .onAppear {
@@ -45,7 +85,26 @@ struct BrandFormView: View {
                         .disabled(name.isEmpty)
                 }
             }
+            .sheet(isPresented: $showingCreateVariant) {
+                ProductVariantFormView { _ in
+                    showingCreateVariant = false
+                }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $editingVariant) { variant in
+                ProductVariantFormView(variant: variant) { _ in
+                    editingVariant = nil
+                }
+                .presentationDragIndicator(.visible)
+            }
         }
+    }
+
+    private func deleteVariants(at offsets: IndexSet) {
+        for index in offsets {
+            modelContext.delete(sortedVariants[index])
+        }
+        try? modelContext.save()
     }
 
     private func save() {

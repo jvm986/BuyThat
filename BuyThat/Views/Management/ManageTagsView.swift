@@ -50,6 +50,7 @@ struct ManageTagsView: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .accessibilityElement(children: .contain)
                 }
                 .onDelete(perform: deleteTags)
 
@@ -86,11 +87,13 @@ struct ManageTagsView: View {
             ) { _ in
                 showingCreateSheet = false
             }
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingTag) { tag in
             TagFormView(tag: tag) { _ in
                 editingTag = nil
             }
+            .presentationDragIndicator(.visible)
         }
     }
 
