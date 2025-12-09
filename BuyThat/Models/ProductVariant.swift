@@ -11,10 +11,10 @@ import SwiftData
 @Model
 final class ProductVariant {
     var baseUnit: MeasurementUnit
+    var detail: String?
     var dateCreated: Date
     var dateModified: Date
 
-    @Relationship(deleteRule: .nullify)
     var product: Product?
 
     @Relationship(deleteRule: .nullify)
@@ -23,12 +23,13 @@ final class ProductVariant {
     @Relationship(deleteRule: .cascade, inverse: \StoreVariantInfo.variant)
     var storeInfo: [StoreVariantInfo]?
 
-    @Relationship(deleteRule: .cascade)
+    @Relationship(deleteRule: .cascade, inverse: \PurchaseUnit.variant)
     var purchaseUnits: [PurchaseUnit]?
 
-    init(product: Product?, brand: Brand? = nil, baseUnit: MeasurementUnit = .units) {
+    init(product: Product?, brand: Brand? = nil, detail: String? = nil, baseUnit: MeasurementUnit = .units) {
         self.product = product
         self.brand = brand
+        self.detail = detail
         self.baseUnit = baseUnit
         self.dateCreated = Date()
         self.dateModified = Date()
@@ -43,7 +44,29 @@ extension ProductVariant {
             parts.append(brand)
         }
 
+        if let detail = detail, !detail.isEmpty {
+            parts.append(detail)
+        }
+
         if let product = product?.name {
+            parts.append(product)
+        }
+
+        return parts.joined(separator: " ")
+    }
+    
+    var displayNameShort: String {
+        var parts: [String] = []
+
+        if let brand = brand?.name {
+            parts.append(brand)
+        }
+
+        if let detail = detail, !detail.isEmpty {
+            parts.append(detail)
+        }
+
+        if parts.isEmpty, let product = product?.name {
             parts.append(product)
         }
 

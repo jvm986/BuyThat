@@ -105,6 +105,7 @@ struct SelectTagsView: View {
                     selectedTags.insert(newTag)
                 }
             )
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingTag) { tag in
             TagFormView(
@@ -113,6 +114,7 @@ struct SelectTagsView: View {
                     editingTag = nil
                 }
             )
+            .presentationDragIndicator(.visible)
         }
     }
 

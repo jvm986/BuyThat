@@ -97,6 +97,7 @@ struct SelectProductView: View {
                     dismiss()
                 }
             )
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingProduct) { product in
             ProductFormView(
@@ -105,6 +106,7 @@ struct SelectProductView: View {
                     editingProduct = nil
                 }
             )
+            .presentationDragIndicator(.visible)
         }
     }
 }

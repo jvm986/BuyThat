@@ -92,6 +92,7 @@ struct SelectBrandView: View {
                     dismiss()
                 }
             )
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingBrand) { brand in
             BrandFormView(
@@ -100,6 +101,7 @@ struct SelectBrandView: View {
                     editingBrand = nil
                 }
             )
+            .presentationDragIndicator(.visible)
         }
     }
 }

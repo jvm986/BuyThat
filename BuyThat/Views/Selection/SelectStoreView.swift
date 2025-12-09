@@ -92,6 +92,7 @@ struct SelectStoreView: View {
                     dismiss()
                 }
             )
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingStore) { store in
             StoreFormView(
@@ -100,6 +101,7 @@ struct SelectStoreView: View {
                     editingStore = nil
                 }
             )
+            .presentationDragIndicator(.visible)
         }
     }
 }

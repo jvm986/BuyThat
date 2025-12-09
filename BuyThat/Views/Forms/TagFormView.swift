@@ -18,6 +18,7 @@ struct TagFormView: View {
     let onSave: (Tag) -> Void
 
     @State private var name: String
+    @State private var editingProduct: Product?
 
     init(tag: Tag? = nil, prefillName: String? = nil, onSave: @escaping (Tag) -> Void) {
         self.tag = tag
@@ -26,11 +27,42 @@ struct TagFormView: View {
         _name = State(initialValue: tag?.name ?? prefillName ?? "")
     }
 
+    private var sortedProducts: [Product] {
+        (tag?.products ?? []).sorted { $0.name < $1.name }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Name", text: $name)
-                    .focused($isNameFocused)
+                Section {
+                    TextField("Name", text: $name)
+                        .focused($isNameFocused)
+                        .accessibilityIdentifier("TagName")
+                }
+
+                if tag != nil {
+                    Section {
+                        if sortedProducts.isEmpty {
+                            Text("No products with this tag")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(sortedProducts) { product in
+                                Button {
+                                    editingProduct = product
+                                } label: {
+                                    HStack {
+                                        Text(product.name)
+                                        Spacer()
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    } header: {
+                        Text("Products (\(sortedProducts.count))")
+                    }
+                }
             }
             .navigationTitle(tag == nil ? "New Tag" : "Edit Tag")
             .onAppear {
@@ -44,6 +76,12 @@ struct TagFormView: View {
                     Button("Save") { save() }
                         .disabled(name.isEmpty)
                 }
+            }
+            .sheet(item: $editingProduct) { product in
+                ProductFormView(product: product) { _ in
+                    editingProduct = nil
+                }
+                .presentationDragIndicator(.visible)
             }
         }
     }

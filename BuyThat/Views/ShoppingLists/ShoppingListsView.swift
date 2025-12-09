@@ -57,12 +57,14 @@ struct ShoppingListsView: View {
                     } label: {
                         Label("Settings", systemImage: "gear")
                     }
+                    .accessibilityIdentifier("SettingsButton")
                 }
             }
             .sheet(isPresented: $showingCreateSheet) {
                 ShoppingListFormView { _ in
                     showingCreateSheet = false
                 }
+                .presentationDragIndicator(.visible)
             }
         }
     }

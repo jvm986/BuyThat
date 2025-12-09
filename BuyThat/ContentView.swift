@@ -23,7 +23,6 @@ struct ContentView: View {
             Store.self,
             Tag.self,
             StoreVariantInfo.self,
-            PriceHistory.self,
             ShoppingList.self,
             ShoppingListItem.self
         ], inMemory: true)

@@ -15,8 +15,13 @@ final class PurchaseUnit {
     var isInverted: Bool // True if entered as "1 purchase_unit = X base_units"
     var dateCreated: Date
 
-    @Relationship(deleteRule: .nullify, inverse: \ProductVariant.purchaseUnits)
     var variant: ProductVariant?
+
+    @Relationship(deleteRule: .nullify, inverse: \ShoppingListItem.purchaseUnit)
+    var shoppingListItems: [ShoppingListItem]?
+
+    @Relationship(deleteRule: .nullify, inverse: \StoreVariantInfo.pricingUnit)
+    var storeVariantInfos: [StoreVariantInfo]?
 
     init(unit: MeasurementUnit, conversionToBase: Double, isInverted: Bool = false, variant: ProductVariant? = nil) {
         self.unit = unit
@@ -56,18 +61,18 @@ extension PurchaseUnit {
             : String(format: "%.5g", conversionToBase)
 
         if isInverted {
-            // Display as: "1 units = 150g" (user entered it this way)
+            // Display as: "1units = 150g" (user entered it this way)
             let invertedValue = 1.0 / conversionToBase
             let invertedStr = invertedValue.truncatingRemainder(dividingBy: 1) == 0
                 ? String(Int(invertedValue))
                 : String(format: "%.5g", invertedValue)
 
-            let leftSide = "1 \(purchaseUnitSymbol)"
+            let leftSide = "1\(purchaseUnitSymbol)"
             let rightSide = "\(invertedStr)\(baseUnitSymbol)"
             return "\(leftSide) = \(rightSide)"
         } else {
             // Display as: "1g = 0.0067 units" (standard direction)
-            let leftSide = "1 \(baseUnitSymbol)"
+            let leftSide = "1\(baseUnitSymbol)"
             let rightSide = "\(conversionValue)\(purchaseUnitSymbol)"
             return "\(leftSide) = \(rightSide)"
         }

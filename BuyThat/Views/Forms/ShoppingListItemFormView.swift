@@ -12,16 +12,23 @@ struct ShoppingListItemFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \StoreVariantInfo.dateModified, order: .reverse) private var allStoreVariantInfos: [StoreVariantInfo]
+    @Query(sort: \ProductVariant.dateCreated, order: .reverse) private var allVariants: [ProductVariant]
+    @Query(sort: \Product.name) private var allProducts: [Product]
 
     let shoppingList: ShoppingList
     let item: ShoppingListItem?
     let onSave: (ShoppingListItem) -> Void
 
+    @State private var searchText: String
     @State private var selectedStoreVariantInfo: StoreVariantInfo?
+    @State private var selectedVariant: ProductVariant?
+    @State private var selectedProduct: Product?
     @State private var quantity: String
     @State private var selectedPurchaseUnit: PurchaseUnit?
-    @State private var showingStoreVariantSelection = false
     @State private var editingStoreVariantInfo: StoreVariantInfo?
+    @State private var editingVariant: ProductVariant?
+    @State private var editingProduct: Product?
+    @State private var showingCreateNewItem = false
 
     init(shoppingList: ShoppingList, item: ShoppingListItem? = nil, onSave: @escaping (ShoppingListItem) -> Void) {
         self.shoppingList = shoppingList
@@ -29,63 +36,79 @@ struct ShoppingListItemFormView: View {
         self.onSave = onSave
         _quantity = State(initialValue: item?.quantity ?? "1")
         _selectedStoreVariantInfo = State(initialValue: item?.storeVariantInfo)
+        _selectedVariant = State(initialValue: item?.variant)
+        _selectedProduct = State(initialValue: item?.product)
         _selectedPurchaseUnit = State(initialValue: item?.purchaseUnit)
+        _searchText = State(initialValue: "")
     }
 
     private var canSave: Bool {
-        selectedStoreVariantInfo != nil && !quantity.isEmpty
+        !quantity.isEmpty && (selectedStoreVariantInfo != nil || selectedVariant != nil || selectedProduct != nil)
+    }
+
+    private var showingSearchResults: Bool {
+        !searchText.isEmpty
+    }
+
+    private var filteredStoreInfos: [StoreVariantInfo] {
+        if searchText.isEmpty { return [] }
+        return allStoreVariantInfos.filter { info in
+            let displayText = "\(info.variant?.displayName ?? "") \(info.store?.name ?? "")"
+            return displayText.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private var filteredVariants: [ProductVariant] {
+        if searchText.isEmpty { return [] }
+        return allVariants.filter { variant in
+            variant.displayName.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private var filteredProducts: [Product] {
+        if searchText.isEmpty { return [] }
+        return allProducts.filter { product in
+            product.name.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private var hierarchicalResults: [ProductGroup] {
+        HierarchicalResultsBuilder.build(
+            products: filteredProducts,
+            variants: filteredVariants,
+            storeInfos: filteredStoreInfos
+        )
     }
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section("Item") {
-                    HStack {
-                        Text("Item")
-                        Spacer()
-                        if let info = selectedStoreVariantInfo {
-                            Text(info.displayName)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                        } else {
-                            Text("Required")
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        showingStoreVariantSelection = true
-                    }
-                    .onLongPressGesture {
-                        if let info = selectedStoreVariantInfo {
-                            editingStoreVariantInfo = info
-                        }
-                    }
-                }
-
-                Section("Details") {
-                    TextField("Quantity", text: $quantity)
-                        .keyboardType(.decimalPad)
-
-                    if let variant = selectedStoreVariantInfo?.variant, let units = variant.purchaseUnits, !units.isEmpty {
-                        Picker("Unit", selection: $selectedPurchaseUnit) {
-                            Text("Base measurement (\(variant.baseUnit.symbol))").tag(nil as PurchaseUnit?)
-                            ForEach(units) { unit in
-                                Text(unit.displayName).tag(unit as PurchaseUnit?)
-                            }
-                        }
-                    }
-
-                    if let info = selectedStoreVariantInfo, let estimated = estimatedPrice(for: info) {
-                        HStack {
-                            Text("Estimated Price")
-                            Spacer()
-                            Text(estimated)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+            List {
+                if showingSearchResults {
+                    HierarchicalSearchResultsView(
+                        hierarchicalResults: hierarchicalResults,
+                        style: .select,
+                        onSelectProduct: selectProduct,
+                        onSelectVariant: selectVariant,
+                        onSelectStoreInfo: selectStoreInfo,
+                        onCreateNew: { showingCreateNewItem = true }
+                    )
+                } else if selectedStoreVariantInfo != nil || selectedVariant != nil || selectedProduct != nil {
+                    SelectedItemDetailsView(
+                        selectedStoreVariantInfo: selectedStoreVariantInfo,
+                        selectedVariant: selectedVariant,
+                        selectedProduct: selectedProduct,
+                        quantity: $quantity,
+                        selectedPurchaseUnit: $selectedPurchaseUnit,
+                        onEditStoreInfo: { editingStoreVariantInfo = $0 },
+                        onEditVariant: { editingVariant = $0 },
+                        onEditProduct: { editingProduct = $0 },
+                        estimatedPrice: selectedStoreVariantInfo.flatMap { estimatedPrice(for: $0) }
+                    )
+                } else {
+                    EmptySearchStateView()
                 }
             }
+            .searchable(text: $searchText, prompt: "Search products, variants, or store items")
             .navigationTitle(item == nil ? "Add Item" : "Edit Item")
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -96,20 +119,62 @@ struct ShoppingListItemFormView: View {
                         .disabled(!canSave)
                 }
             }
-            .sheet(isPresented: $showingStoreVariantSelection) {
+            .sheet(isPresented: $showingCreateNewItem) {
                 NavigationStack {
-                    SelectStoreVariantInfoView { info in
-                        selectedStoreVariantInfo = info
-                        showingStoreVariantSelection = false
+                    CreateNewItemView(searchText: searchText) { createdItem in
+                        showingCreateNewItem = false
+                        // Select the newly created item based on its type
+                        if let storeInfo = createdItem as? StoreVariantInfo {
+                            selectStoreInfo(storeInfo)
+                        } else if let variant = createdItem as? ProductVariant {
+                            selectVariant(variant)
+                        } else if let product = createdItem as? Product {
+                            selectProduct(product)
+                        }
                     }
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(item: $editingStoreVariantInfo) { info in
                 StoreVariantInfoFormView(storeVariantInfo: info) { _ in
                     editingStoreVariantInfo = nil
                 }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $editingVariant) { variant in
+                ProductVariantFormView(variant: variant) { _ in
+                    editingVariant = nil
+                }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $editingProduct) { product in
+                ProductFormView(product: product) { _ in
+                    editingProduct = nil
+                }
+                .presentationDragIndicator(.visible)
             }
         }
+    }
+
+    private func selectStoreInfo(_ info: StoreVariantInfo) {
+        selectedStoreVariantInfo = info
+        selectedVariant = nil
+        selectedProduct = nil
+        searchText = ""
+    }
+
+    private func selectVariant(_ variant: ProductVariant) {
+        selectedStoreVariantInfo = nil
+        selectedVariant = variant
+        selectedProduct = nil
+        searchText = ""
+    }
+
+    private func selectProduct(_ product: Product) {
+        selectedStoreVariantInfo = nil
+        selectedVariant = nil
+        selectedProduct = product
+        searchText = ""
     }
 
     private func estimatedPrice(for info: StoreVariantInfo) -> String? {
@@ -145,17 +210,21 @@ struct ShoppingListItemFormView: View {
     }
 
     private func save() {
-        guard let storeVariantInfo = selectedStoreVariantInfo else { return }
-
         let itemToSave: ShoppingListItem
         if let existing = item {
-            existing.storeVariantInfo = storeVariantInfo
+            // Update existing item
+            existing.storeVariantInfo = selectedStoreVariantInfo
+            existing.variant = selectedVariant
+            existing.product = selectedProduct
             existing.quantity = quantity
             existing.purchaseUnit = selectedPurchaseUnit
             itemToSave = existing
         } else {
+            // Create new item
             itemToSave = ShoppingListItem(
-                storeVariantInfo: storeVariantInfo,
+                storeVariantInfo: selectedStoreVariantInfo,
+                variant: selectedVariant,
+                product: selectedProduct,
                 quantity: quantity,
                 purchaseUnit: selectedPurchaseUnit,
                 list: shoppingList
@@ -166,6 +235,130 @@ struct ShoppingListItemFormView: View {
         try? modelContext.save()
         onSave(itemToSave)
         dismiss()
+    }
+}
+
+// MARK: - Extracted View Components
+
+struct SelectedItemDetailsView: View {
+    let selectedStoreVariantInfo: StoreVariantInfo?
+    let selectedVariant: ProductVariant?
+    let selectedProduct: Product?
+    @Binding var quantity: String
+    @Binding var selectedPurchaseUnit: PurchaseUnit?
+    let onEditStoreInfo: (StoreVariantInfo) -> Void
+    let onEditVariant: (ProductVariant) -> Void
+    let onEditProduct: (Product) -> Void
+    let estimatedPrice: String?
+
+    var body: some View {
+        Section("Selected Item") {
+            selectedItemContent
+        }
+
+        Section("Details") {
+            TextField("Quantity", text: $quantity)
+                .keyboardType(.decimalPad)
+
+            unitPickerView
+
+            estimatedPriceView
+        }
+    }
+
+    @ViewBuilder
+    private var selectedItemContent: some View {
+        VStack(alignment: .leading) {
+            if let info = selectedStoreVariantInfo {
+                storeInfoDetails(info)
+            } else if let variant = selectedVariant {
+                variantDetails(variant)
+            } else if let product = selectedProduct {
+                Text(product.name)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onLongPressGesture(perform: handleLongPress)
+    }
+
+    @ViewBuilder
+    private func storeInfoDetails(_ info: StoreVariantInfo) -> some View {
+        Text(info.variant?.displayName ?? "Unknown")
+        HStack {
+            Text(info.store?.name ?? "")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            if let price = info.formattedPrice {
+                Text("•")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(price)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func variantDetails(_ variant: ProductVariant) -> some View {
+        Text(variant.displayNameShort)
+        if let brand = variant.brand?.name {
+            Text(brand)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var unitPickerView: some View {
+        if let variant = (selectedStoreVariantInfo?.variant ?? selectedVariant),
+           let units = variant.purchaseUnits, !units.isEmpty {
+            Picker("Unit", selection: $selectedPurchaseUnit) {
+                Text("Base measurement (\(variant.baseUnit.symbol))").tag(nil as PurchaseUnit?)
+                ForEach(units) { unit in
+                    Text(unit.displayName).tag(unit as PurchaseUnit?)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var estimatedPriceView: some View {
+        if let estimated = estimatedPrice {
+            HStack {
+                Text("Estimated Price")
+                Spacer()
+                Text(estimated)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func handleLongPress() {
+        if let info = selectedStoreVariantInfo {
+            onEditStoreInfo(info)
+        } else if let variant = selectedVariant {
+            onEditVariant(variant)
+        } else if let product = selectedProduct {
+            onEditProduct(product)
+        }
+    }
+}
+
+struct EmptySearchStateView: View {
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 48))
+                .foregroundStyle(.secondary)
+            Text("Search for an item to add to your list")
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, 100)
+        .listRowBackground(Color.clear)
     }
 }
 

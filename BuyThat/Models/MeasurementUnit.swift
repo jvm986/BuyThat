@@ -8,8 +8,8 @@
 import Foundation
 
 enum MeasurementUnit: String, Codable, Hashable, Sendable, CaseIterable {
-    case grams = "g"
-    case milliliters = "mL"
+    case kilograms = "kg"
+    case liters = "L"
     case units = "units"
 
     var symbol: String {

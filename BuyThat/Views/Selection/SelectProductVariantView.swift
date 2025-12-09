@@ -91,11 +91,13 @@ struct SelectProductVariantView: View {
                 onSelect(newVariant)
                 dismiss()
             }
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingVariant) { variant in
             ProductVariantFormView(variant: variant) { _ in
                 editingVariant = nil
             }
+            .presentationDragIndicator(.visible)
         }
     }
 }

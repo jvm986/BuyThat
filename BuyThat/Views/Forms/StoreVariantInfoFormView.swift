@@ -24,10 +24,10 @@ struct StoreVariantInfoFormView: View {
     @State private var showingVariantSelection = false
     @State private var showingStoreSelection = false
 
-    init(storeVariantInfo: StoreVariantInfo? = nil, onSave: @escaping (StoreVariantInfo) -> Void) {
+    init(storeVariantInfo: StoreVariantInfo? = nil, prefilledVariant: ProductVariant? = nil, onSave: @escaping (StoreVariantInfo) -> Void) {
         self.storeVariantInfo = storeVariantInfo
         self.onSave = onSave
-        _selectedVariant = State(initialValue: storeVariantInfo?.variant)
+        _selectedVariant = State(initialValue: storeVariantInfo?.variant ?? prefilledVariant)
         _selectedStore = State(initialValue: storeVariantInfo?.store)
         _priceText = State(initialValue: storeVariantInfo?.pricePerUnit.map { "\($0)" } ?? "")
         _selectedPricingUnit = State(initialValue: storeVariantInfo?.pricingUnit)
@@ -118,13 +118,6 @@ struct StoreVariantInfoFormView: View {
                     TextField(pricePlaceholder, text: $priceText)
                         .keyboardType(.decimalPad)
                 }
-
-                if let variant = selectedVariant, let store = selectedStore {
-                    Section {
-                        Text("Preview: \(variant.displayName) at \(store.name)")
-                            .foregroundStyle(.secondary)
-                    }
-                }
             }
             .navigationTitle(storeVariantInfo == nil ? "New Store Info" : "Edit Store Info")
             .toolbar {
@@ -143,6 +136,7 @@ struct StoreVariantInfoFormView: View {
                         showingVariantSelection = false
                     }
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showingStoreSelection) {
                 NavigationStack {
@@ -151,16 +145,19 @@ struct StoreVariantInfoFormView: View {
                         showingStoreSelection = false
                     }
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(item: $editingVariant) { variant in
                 ProductVariantFormView(variant: variant) { _ in
                     editingVariant = nil
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(item: $editingStore) { store in
                 StoreFormView(store: store) { _ in
                     editingStore = nil
                 }
+                .presentationDragIndicator(.visible)
             }
         }
     }
@@ -174,6 +171,7 @@ struct StoreVariantInfoFormView: View {
             existing.store = store
             existing.pricePerUnit = price
             existing.pricingUnit = selectedPricingUnit
+            existing.pricingUnitConversion = selectedPricingUnit?.conversionToBase
             existing.dateModified = Date()
             storeVariantInfoToSave = existing
         } else {

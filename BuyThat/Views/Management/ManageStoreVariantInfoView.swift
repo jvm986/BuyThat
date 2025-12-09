@@ -36,7 +36,7 @@ struct ManageStoreVariantInfoView: View {
         List {
             ForEach(groupedByStore.keys.sorted(), id: \.self) { storeName in
                 Section(storeName) {
-                    ForEach(groupedByStore[storeName] ?? []) { info in
+                    ForEach((groupedByStore[storeName] ?? []).sorted { $0.variant?.displayName.localizedCaseInsensitiveCompare($1.variant?.displayName ?? "") == .orderedAscending }) { info in
                         Button {
                             editingInfo = info
                         } label: {
@@ -56,7 +56,8 @@ struct ManageStoreVariantInfoView: View {
                         .buttonStyle(.plain)
                     }
                     .onDelete { offsets in
-                        deleteInfos(from: groupedByStore[storeName] ?? [], at: offsets)
+                        let sortedInfos = (groupedByStore[storeName] ?? []).sorted { $0.variant?.displayName.localizedCaseInsensitiveCompare($1.variant?.displayName ?? "") == .orderedAscending }
+                        deleteInfos(from: sortedInfos, at: offsets)
                     }
                 }
             }
@@ -74,11 +75,13 @@ struct ManageStoreVariantInfoView: View {
             StoreVariantInfoFormView { _ in
                 showingCreateSheet = false
             }
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingInfo) { info in
             StoreVariantInfoFormView(storeVariantInfo: info) { _ in
                 editingInfo = nil
             }
+            .presentationDragIndicator(.visible)
         }
     }
 

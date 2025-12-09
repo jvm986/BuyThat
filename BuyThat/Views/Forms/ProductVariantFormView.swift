@@ -17,6 +17,7 @@ struct ProductVariantFormView: View {
     @State private var variant: ProductVariant?
     @State private var selectedProduct: Product?
     @State private var selectedBrand: Brand?
+    @State private var detail: String
     @State private var selectedBaseUnit: MeasurementUnit
     @State private var originalBaseUnit: MeasurementUnit?
     @State private var editingProduct: Product?
@@ -28,18 +29,25 @@ struct ProductVariantFormView: View {
     @State private var refreshTrigger = UUID()
     @State private var showingBaseUnitChangeConfirmation = false
     @State private var pendingBaseUnit: MeasurementUnit?
+    @State private var showingCreateStoreInfo = false
+    @State private var editingStoreInfo: StoreVariantInfo?
 
-    init(variant: ProductVariant? = nil, onSave: @escaping (ProductVariant) -> Void) {
+    init(variant: ProductVariant? = nil, prefilledProduct: Product? = nil, onSave: @escaping (ProductVariant) -> Void) {
         self.onSave = onSave
         _variant = State(initialValue: variant)
-        _selectedProduct = State(initialValue: variant?.product)
+        _selectedProduct = State(initialValue: variant?.product ?? prefilledProduct)
         _selectedBrand = State(initialValue: variant?.brand)
+        _detail = State(initialValue: variant?.detail ?? "")
         _selectedBaseUnit = State(initialValue: variant?.baseUnit ?? .units)
         _originalBaseUnit = State(initialValue: variant?.baseUnit)
     }
 
     private var canSave: Bool {
         selectedProduct != nil
+    }
+
+    private var sortedStoreInfos: [StoreVariantInfo] {
+        (variant?.storeInfo ?? []).sorted { ($0.store?.name ?? "") < ($1.store?.name ?? "") }
     }
 
     var body: some View {
@@ -58,6 +66,8 @@ struct ProductVariantFormView: View {
                         }
                     }
                     .contentShape(Rectangle())
+                    .accessibilityElement(children: .combine)
+                    .accessibilityIdentifier("ProductSelector")
                     .onTapGesture {
                         showingProductSelection = true
                     }
@@ -98,6 +108,12 @@ struct ProductVariantFormView: View {
                 }
 
                 Section {
+                    TextField("Detail (optional)", text: $detail, prompt: Text("Detail"))
+                } header: {
+                    Text("Additional Detail")
+                }
+
+                Section {
                     Picker("Base", selection: Binding(
                         get: { selectedBaseUnit },
                         set: { newValue in
@@ -105,8 +121,8 @@ struct ProductVariantFormView: View {
                         }
                     )) {
                         Text("Count (units)").tag(MeasurementUnit.units)
-                        Text("Weight (g)").tag(MeasurementUnit.grams)
-                        Text("Volume (mL)").tag(MeasurementUnit.milliliters)
+                        Text("Weight (kg)").tag(MeasurementUnit.kilograms)
+                        Text("Volume (L)").tag(MeasurementUnit.liters)
                     }
                     .pickerStyle(.menu)
 
@@ -114,16 +130,12 @@ struct ProductVariantFormView: View {
                         Button {
                             saveAndContinue()
                         } label: {
-                            Label("Add Purchase Units", systemImage: "plus.circle")
+                            Label("Save to add purchase units", systemImage: "checkmark.circle")
                         }
                         .disabled(!canSave)
                     }
                 } header: {
                     Text("Measurement Type")
-                } footer: {
-                    if variant == nil {
-                        Text("Save to configure alternative units.")
-                    }
                 }
 
                 if let variant = variant {
@@ -160,17 +172,49 @@ struct ProductVariantFormView: View {
                         }
                     } header: {
                         Text("Purchase Units")
-                    } footer: {
-                        Text("Optional: Add alternative units for pricing and ordering")
                     }
                     .id(refreshTrigger)
                 }
 
-                if let product = selectedProduct {
+                if variant != nil {
                     Section {
-                        Text("Preview: \(previewName(product: product))")
-                            .foregroundStyle(.secondary)
+                        if sortedStoreInfos.isEmpty {
+                            Text("Not available in any stores")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(sortedStoreInfos) { info in
+                                Button {
+                                    editingStoreInfo = info
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading) {
+                                            Text(info.store?.name ?? "Unknown")
+                                            if let price = info.formattedPrice {
+                                                Text(price)
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
+                                        Spacer()
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .onDelete { offsets in
+                                deleteStoreInfos(at: offsets)
+                            }
+                        }
+
+                        Button {
+                            showingCreateStoreInfo = true
+                        } label: {
+                            Label("Add Store", systemImage: "plus.circle.fill")
+                        }
+                    } header: {
+                        Text("Stores (\(sortedStoreInfos.count))")
                     }
+                    .id(refreshTrigger)
                 }
             }
             .navigationTitle(variant == nil ? "New Variant" : "Edit Variant")
@@ -196,6 +240,7 @@ struct ProductVariantFormView: View {
                         showingProductSelection = false
                     }
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(isPresented: $showingBrandSelection) {
                 NavigationStack {
@@ -204,28 +249,47 @@ struct ProductVariantFormView: View {
                         showingBrandSelection = false
                     }
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(item: $editingProduct) { product in
                 ProductFormView(product: product) { _ in
                     editingProduct = nil
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(item: $editingBrand) { brand in
                 BrandFormView(brand: brand) { _ in
                     editingBrand = nil
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(item: $variantForPurchaseUnit) { variant in
                 PurchaseUnitFormView(variant: variant) { _ in
                     refreshTrigger = UUID()
                     variantForPurchaseUnit = nil
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(item: $editingPurchaseUnit) { unit in
                 PurchaseUnitFormView(variant: variant!, purchaseUnit: unit) { _ in
                     refreshTrigger = UUID()
                     editingPurchaseUnit = nil
                 }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showingCreateStoreInfo) {
+                StoreVariantInfoFormView(prefilledVariant: variant) { _ in
+                    refreshTrigger = UUID()
+                    showingCreateStoreInfo = false
+                }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $editingStoreInfo) { info in
+                StoreVariantInfoFormView(storeVariantInfo: info) { _ in
+                    refreshTrigger = UUID()
+                    editingStoreInfo = nil
+                }
+                .presentationDragIndicator(.visible)
             }
             .alert(
                 "Change Base Measurement?",
@@ -293,6 +357,14 @@ struct ProductVariantFormView: View {
         refreshTrigger = UUID()
     }
 
+    private func deleteStoreInfos(at offsets: IndexSet) {
+        for index in offsets {
+            modelContext.delete(sortedStoreInfos[index])
+        }
+        try? modelContext.save()
+        refreshTrigger = UUID()
+    }
+
     private func previewName(product: Product) -> String {
         var parts: [String] = []
 
@@ -312,6 +384,7 @@ struct ProductVariantFormView: View {
         let newVariant = ProductVariant(
             product: product,
             brand: selectedBrand,
+            detail: detail.isEmpty ? nil : detail,
             baseUnit: selectedBaseUnit
         )
         modelContext.insert(newVariant)
@@ -330,6 +403,7 @@ struct ProductVariantFormView: View {
         if let existingVariant = variant {
             existingVariant.product = product
             existingVariant.brand = selectedBrand
+            existingVariant.detail = detail.isEmpty ? nil : detail
             existingVariant.baseUnit = selectedBaseUnit
             existingVariant.dateModified = Date()
             variantToSave = existingVariant
@@ -337,6 +411,7 @@ struct ProductVariantFormView: View {
             variantToSave = ProductVariant(
                 product: product,
                 brand: selectedBrand,
+                detail: detail.isEmpty ? nil : detail,
                 baseUnit: selectedBaseUnit
             )
             modelContext.insert(variantToSave)

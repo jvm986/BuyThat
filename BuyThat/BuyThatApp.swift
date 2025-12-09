@@ -19,11 +19,13 @@ struct BuyThatApp: App {
             ProductVariant.self,
             PurchaseUnit.self,
             StoreVariantInfo.self,
-            PriceHistory.self,
             ShoppingList.self,
             ShoppingListItem.self,
         ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+
+        // Use in-memory storage for UI testing to ensure clean state
+        let isUITesting = ProcessInfo.processInfo.arguments.contains("UI-TESTING")
+        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: isUITesting)
 
         do {
             return try ModelContainer(for: schema, configurations: [modelConfiguration])

@@ -21,6 +21,8 @@ struct ProductFormView: View {
     @State private var selectedTags: Set<Tag>
     @State private var showingTagSelection = false
     @State private var editingTag: Tag?
+    @State private var showingCreateVariant = false
+    @State private var editingVariant: ProductVariant?
 
     init(product: Product? = nil, prefillName: String? = nil, onSave: @escaping (Product) -> Void) {
         self.product = product
@@ -30,12 +32,17 @@ struct ProductFormView: View {
         _selectedTags = State(initialValue: Set(product?.tags ?? []))
     }
 
+    private var sortedVariants: [ProductVariant] {
+        (product?.variants ?? []).sorted { $0.displayName < $1.displayName }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 Section("Details") {
                     TextField("Name", text: $name)
                         .focused($isNameFocused)
+                        .accessibilityIdentifier("Product name")
                 }
 
                 Section("Tags") {
@@ -67,6 +74,37 @@ struct ProductFormView: View {
                         }
                     }
                 }
+
+                if product != nil {
+                    Section {
+                        if sortedVariants.isEmpty {
+                            Text("No product variants")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(sortedVariants) { variant in
+                                Button {
+                                    editingVariant = variant
+                                } label: {
+                                    HStack {
+                                        Text(variant.displayName)
+                                        Spacer()
+                                    }
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .onDelete(perform: deleteVariants)
+                        }
+
+                        Button {
+                            showingCreateVariant = true
+                        } label: {
+                            Label("Add Product Variant", systemImage: "plus.circle.fill")
+                        }
+                    } header: {
+                        Text("Product Variants (\(sortedVariants.count))")
+                    }
+                }
             }
             .navigationTitle(product == nil ? "New Product" : "Edit Product")
             .onAppear {
@@ -88,13 +126,34 @@ struct ProductFormView: View {
                         showingTagSelection = false
                     }
                 }
+                .presentationDragIndicator(.visible)
             }
             .sheet(item: $editingTag) { tag in
                 TagFormView(tag: tag) { _ in
                     editingTag = nil
                 }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(isPresented: $showingCreateVariant) {
+                ProductVariantFormView(prefilledProduct: product) { _ in
+                    showingCreateVariant = false
+                }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $editingVariant) { variant in
+                ProductVariantFormView(variant: variant) { _ in
+                    editingVariant = nil
+                }
+                .presentationDragIndicator(.visible)
             }
         }
+    }
+
+    private func deleteVariants(at offsets: IndexSet) {
+        for index in offsets {
+            modelContext.delete(sortedVariants[index])
+        }
+        try? modelContext.save()
     }
 
     private func save() {

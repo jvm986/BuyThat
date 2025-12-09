@@ -14,10 +14,11 @@ struct ShoppingListDetailView: View {
 
     @Query private var items: [ShoppingListItem]
     @Query(sort: \StoreVariantInfo.dateModified, order: .reverse) private var allStoreVariantInfos: [StoreVariantInfo]
+    @Query(sort: \ProductVariant.dateCreated, order: .reverse) private var allVariants: [ProductVariant]
+    @Query(sort: \Product.name) private var allProducts: [Product]
 
     @State private var searchText = ""
-    @State private var showingAddSheet = false
-    @State private var showingQuickCreate = false
+    @State private var showingCreateNewItem = false
     @State private var editingItem: ShoppingListItem?
 
     init(shoppingList: ShoppingList) {
@@ -63,20 +64,38 @@ struct ShoppingListDetailView: View {
             return []
         }
         // Get all matching store infos
-        let allMatching = allStoreVariantInfos.filter { info in
+        return allStoreVariantInfos.filter { info in
             let displayText = "\(info.variant?.displayName ?? "") \(info.store?.name ?? "")"
             return displayText.localizedCaseInsensitiveContains(searchText)
         }
-
-        // Filter out ones that are already on the list
-        let existingInfoIDs = Set(items.compactMap { $0.storeVariantInfo?.persistentModelID })
-        return allMatching.filter { !existingInfoIDs.contains($0.persistentModelID) }
     }
 
-    private var groupedByStore: [String: [StoreVariantInfo]] {
-        Dictionary(grouping: filteredStoreInfos) { info in
-            info.store?.name ?? "No Store"
+    private var filteredVariants: [ProductVariant] {
+        if searchText.isEmpty {
+            return []
         }
+        // Get all matching variants
+        return allVariants.filter { variant in
+            variant.displayName.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private var filteredProducts: [Product] {
+        if searchText.isEmpty {
+            return []
+        }
+        // Get all matching products
+        return allProducts.filter { product in
+            product.name.localizedCaseInsensitiveContains(searchText)
+        }
+    }
+
+    private var hierarchicalResults: [ProductGroup] {
+        HierarchicalResultsBuilder.build(
+            products: filteredProducts,
+            variants: filteredVariants,
+            storeInfos: filteredStoreInfos
+        )
     }
 
     private var showingSearchResults: Bool {
@@ -101,128 +120,36 @@ struct ShoppingListDetailView: View {
     var body: some View {
         List {
             if showingSearchResults {
-                // Show existing items on list that match search
-                if !filteredItemsUnpurchased.isEmpty {
-                    Section("On Your List") {
-                        ForEach(filteredItemsUnpurchased) { item in
-                            ShoppingListItemRow(item: item)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    editingItem = item
-                                }
-                        }
-                    }
-                }
+                ExistingItemsSearchView(
+                    unpurchasedItems: filteredItemsUnpurchased,
+                    purchasedItems: filteredItemsPurchased,
+                    onEditItem: { editingItem = $0 }
+                )
 
-                if !filteredItemsPurchased.isEmpty {
-                    Section("On Your List - Purchased") {
-                        ForEach(filteredItemsPurchased) { item in
-                            ShoppingListItemRow(item: item)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    editingItem = item
-                                }
-                        }
-                    }
-                }
-
-                // Show available items to add
-                if !filteredStoreInfos.isEmpty {
-                    ForEach(groupedByStore.keys.sorted(), id: \.self) { storeName in
-                        Section("Add from \(storeName)") {
-                            ForEach(groupedByStore[storeName] ?? []) { info in
-                                Button {
-                                    addQuickItem(info)
-                                } label: {
-                                    HStack {
-                                        Image(systemName: "plus.circle")
-                                            .foregroundStyle(.green)
-                                        VStack(alignment: .leading) {
-                                            Text(info.variant?.displayName ?? "Unknown")
-                                                .foregroundStyle(.primary)
-                                            if let price = info.formattedPrice {
-                                                Text(price)
-                                                    .font(.caption)
-                                                    .foregroundStyle(.secondary)
-                                            }
-                                        }
-                                        Spacer()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // Always show "Create New Item" button when searching
-                Section {
-                    Button {
-                        showingQuickCreate = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(.blue)
-                            Text("Create New Item")
-                                .foregroundStyle(.primary)
-                        }
-                    }
-                }
+                HierarchicalSearchResultsView(
+                    hierarchicalResults: hierarchicalResults,
+                    style: .quickAdd,
+                    onSelectProduct: addQuickProduct,
+                    onSelectVariant: addQuickVariant,
+                    onSelectStoreInfo: addQuickStoreItem,
+                    onCreateNew: { showingCreateNewItem = true }
+                )
             } else {
-                if !unpurchasedItems.isEmpty {
-                    Section {
-                        ForEach(unpurchasedItems) { item in
-                            ShoppingListItemRow(item: item)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    editingItem = item
-                                }
-                        }
-                        .onDelete { offsets in
-                            deleteItems(from: unpurchasedItems, at: offsets)
-                        }
-                    } header: {
-                        HStack {
-                            Text("To Buy")
-                            Spacer()
-                            if unpurchasedTotal > 0 {
-                                Text(unpurchasedTotal as NSDecimalNumber, formatter: currencyFormatter)
-                            }
-                        }
-                    }
-                }
-
-                if !purchasedItems.isEmpty {
-                    Section {
-                        ForEach(purchasedItems) { item in
-                            ShoppingListItemRow(item: item)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    editingItem = item
-                                }
-                        }
-                        .onDelete { offsets in
-                            deleteItems(from: purchasedItems, at: offsets)
-                        }
-                    } header: {
-                        HStack {
-                            Text("Purchased")
-                            Spacer()
-                            if purchasedTotal > 0 {
-                                Text(purchasedTotal as NSDecimalNumber, formatter: currencyFormatter)
-                            }
-                        }
-                    }
-                }
+                ShoppingListSectionsView(
+                    unpurchasedItems: unpurchasedItems,
+                    purchasedItems: purchasedItems,
+                    unpurchasedTotal: unpurchasedTotal,
+                    purchasedTotal: purchasedTotal,
+                    currencyFormatter: currencyFormatter,
+                    onEditItem: { editingItem = $0 },
+                    onDeleteUnpurchased: { deleteItems(from: unpurchasedItems, at: $0) },
+                    onDeletePurchased: { deleteItems(from: purchasedItems, at: $0) }
+                )
             }
         }
         .searchable(text: $searchText, prompt: "Search to add items")
         .navigationTitle(shoppingList.name)
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("Add", systemImage: "plus") {
-                    showingAddSheet = true
-                }
-            }
             if !purchasedItems.isEmpty || !unpurchasedItems.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
                     Menu {
@@ -242,25 +169,31 @@ struct ShoppingListDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $showingAddSheet) {
-            ShoppingListItemFormView(shoppingList: shoppingList) { _ in
-                showingAddSheet = false
+        .sheet(isPresented: $showingCreateNewItem) {
+            NavigationStack {
+                CreateNewItemView(searchText: searchText) { createdItem in
+                    showingCreateNewItem = false
+                    // Add the newly created item based on its type
+                    if let storeInfo = createdItem as? StoreVariantInfo {
+                        addQuickStoreItem(storeInfo)
+                    } else if let variant = createdItem as? ProductVariant {
+                        addQuickVariant(variant)
+                    } else if let product = createdItem as? Product {
+                        addQuickProduct(product)
+                    }
+                }
             }
-        }
-        .sheet(isPresented: $showingQuickCreate) {
-            StoreVariantInfoFormView { newInfo in
-                showingQuickCreate = false
-                addQuickItem(newInfo)
-            }
+            .presentationDragIndicator(.visible)
         }
         .sheet(item: $editingItem) { item in
             ShoppingListItemFormView(shoppingList: shoppingList, item: item) { _ in
                 editingItem = nil
             }
+            .presentationDragIndicator(.visible)
         }
     }
 
-    private func addQuickItem(_ storeVariantInfo: StoreVariantInfo) {
+    private func addQuickStoreItem(_ storeVariantInfo: StoreVariantInfo) {
         let item = ShoppingListItem(
             storeVariantInfo: storeVariantInfo,
             quantity: "1",
@@ -269,6 +202,31 @@ struct ShoppingListDetailView: View {
         modelContext.insert(item)
         try? modelContext.save()
         searchText = ""
+        editingItem = item
+    }
+
+    private func addQuickVariant(_ variant: ProductVariant) {
+        let item = ShoppingListItem(
+            variant: variant,
+            quantity: "1",
+            list: shoppingList
+        )
+        modelContext.insert(item)
+        try? modelContext.save()
+        searchText = ""
+        editingItem = item
+    }
+
+    private func addQuickProduct(_ product: Product) {
+        let item = ShoppingListItem(
+            product: product,
+            quantity: "1",
+            list: shoppingList
+        )
+        modelContext.insert(item)
+        try? modelContext.save()
+        searchText = ""
+        editingItem = item
     }
 
     private func deleteItems(from array: [ShoppingListItem], at offsets: IndexSet) {
@@ -293,12 +251,101 @@ struct ShoppingListDetailView: View {
     }
 }
 
+// MARK: - Extracted View Components
+
+struct ExistingItemsSearchView: View {
+    let unpurchasedItems: [ShoppingListItem]
+    let purchasedItems: [ShoppingListItem]
+    let onEditItem: (ShoppingListItem) -> Void
+
+    var body: some View {
+        if !unpurchasedItems.isEmpty {
+            Section("On Your List") {
+                ForEach(unpurchasedItems) { item in
+                    ShoppingListItemRow(item: item)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onEditItem(item)
+                        }
+                }
+            }
+        }
+
+        if !purchasedItems.isEmpty {
+            Section("On Your List - Purchased") {
+                ForEach(purchasedItems) { item in
+                    ShoppingListItemRow(item: item)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onEditItem(item)
+                        }
+                }
+            }
+        }
+    }
+}
+
+struct ShoppingListSectionsView: View {
+    let unpurchasedItems: [ShoppingListItem]
+    let purchasedItems: [ShoppingListItem]
+    let unpurchasedTotal: Decimal
+    let purchasedTotal: Decimal
+    let currencyFormatter: NumberFormatter
+    let onEditItem: (ShoppingListItem) -> Void
+    let onDeleteUnpurchased: (IndexSet) -> Void
+    let onDeletePurchased: (IndexSet) -> Void
+
+    var body: some View {
+        if !unpurchasedItems.isEmpty {
+            Section {
+                ForEach(unpurchasedItems) { item in
+                    ShoppingListItemRow(item: item)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onEditItem(item)
+                        }
+                }
+                .onDelete(perform: onDeleteUnpurchased)
+            } header: {
+                HStack {
+                    Text("To Buy")
+                    Spacer()
+                    if unpurchasedTotal > 0 {
+                        Text(unpurchasedTotal as NSDecimalNumber, formatter: currencyFormatter)
+                    }
+                }
+            }
+        }
+
+        if !purchasedItems.isEmpty {
+            Section {
+                ForEach(purchasedItems) { item in
+                    ShoppingListItemRow(item: item)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onEditItem(item)
+                        }
+                }
+                .onDelete(perform: onDeletePurchased)
+            } header: {
+                HStack {
+                    Text("Purchased")
+                    Spacer()
+                    if purchasedTotal > 0 {
+                        Text(purchasedTotal as NSDecimalNumber, formatter: currencyFormatter)
+                    }
+                }
+            }
+        }
+    }
+}
+
 struct ShoppingListItemRow: View {
     @Bindable var item: ShoppingListItem
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top) {
+            HStack(alignment: .top, spacing: 12) {
                 Button {
                     item.isPurchased.toggle()
                 } label: {
@@ -308,23 +355,23 @@ struct ShoppingListItemRow: View {
                 .buttonStyle(.plain)
 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.storeVariantInfo?.variant?.product?.name ?? "Unknown Item")
+                    Text(productDisplayName)
                         .strikethrough(item.isPurchased)
 
                     // Store and Brand subtitle
                     HStack(spacing: 4) {
-                        if let brand = item.storeVariantInfo?.variant?.brand?.name {
+                        if let brand = item.effectiveVariant?.brand?.name {
                             Text(brand)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        if let _ = item.storeVariantInfo?.variant?.brand?.name,
-                           let _ = item.storeVariantInfo?.store?.name {
+                        if let _ = item.effectiveVariant?.brand?.name,
+                           let _ = item.effectiveStore?.name {
                             Text("•")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                        if let store = item.storeVariantInfo?.store?.name {
+                        if let store = item.effectiveStore?.name {
                             Text(store)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
@@ -349,16 +396,24 @@ struct ShoppingListItemRow: View {
         }
     }
 
+    private var productDisplayName: String {
+        let productName = item.effectiveProduct?.name ?? "Unknown Item"
+
+        if let detail = item.effectiveVariant?.detail, !detail.isEmpty {
+            return "\(detail) \(productName)"
+        }
+
+        return productName
+    }
+
     private var quantityDisplay: String {
         let itemQty = item.quantity
 
         if let unit = item.purchaseUnit {
             return "\(itemQty) \(unit.displayName)"
-        } else if let baseUnit = item.storeVariantInfo?.variant?.baseUnit {
-            return "\(itemQty) \(baseUnit.symbol)"
+        } else {
+            return "\(itemQty) \(item.effectiveBaseUnit.symbol)"
         }
-
-        return itemQty
     }
 
     private var currencyFormatter: NumberFormatter {

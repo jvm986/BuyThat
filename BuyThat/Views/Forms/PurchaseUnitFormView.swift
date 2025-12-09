@@ -42,7 +42,9 @@ struct PurchaseUnitFormView: View {
     }
 
     private var conversion: Double? {
-        guard let value = Double(conversionText), value > 0 else { return nil }
+        // Replace comma with period for decimal parsing
+        let normalizedText = conversionText.replacingOccurrences(of: ",", with: ".")
+        guard let value = Double(normalizedText), value > 0 else { return nil }
         return isInverted ? (1.0 / value) : value
     }
 
@@ -68,7 +70,7 @@ struct PurchaseUnitFormView: View {
                     }
 
                     Picker("Measurement Unit", selection: $selectedUnit) {
-                        ForEach([MeasurementUnit.units, .grams, .milliliters], id: \.self) { unit in
+                        ForEach([MeasurementUnit.units, .kilograms, .liters], id: \.self) { unit in
                             Text(unit.symbol).tag(unit)
                         }
                     }
@@ -107,7 +109,9 @@ struct PurchaseUnitFormView: View {
 
     private func flipConversion() {
         // Convert the existing value when inverting
-        if let currentValue = Double(conversionText), currentValue > 0 {
+        // Replace comma with period for decimal parsing
+        let normalizedText = conversionText.replacingOccurrences(of: ",", with: ".")
+        if let currentValue = Double(normalizedText), currentValue > 0 {
             let invertedValue = 1.0 / currentValue
             conversionText = invertedValue.truncatingRemainder(dividingBy: 1) == 0
                 ? String(Int(invertedValue))
