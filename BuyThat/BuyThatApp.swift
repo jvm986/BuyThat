@@ -19,8 +19,9 @@ struct BuyThatApp: App {
             ProductVariant.self,
             PurchaseUnit.self,
             StoreVariantInfo.self,
-            ShoppingList.self,
-            ShoppingListItem.self,
+            ToBuyItem.self,
+            ItemList.self,
+            ItemListEntry.self,
         ])
 
         // Use in-memory storage for UI testing to ensure clean state

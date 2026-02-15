@@ -17,8 +17,11 @@ final class PurchaseUnit {
 
     var variant: ProductVariant?
 
-    @Relationship(deleteRule: .nullify, inverse: \ShoppingListItem.purchaseUnit)
-    var shoppingListItems: [ShoppingListItem]?
+    @Relationship(deleteRule: .nullify, inverse: \ToBuyItem.purchaseUnit)
+    var toBuyItems: [ToBuyItem]?
+
+    @Relationship(deleteRule: .nullify, inverse: \ItemListEntry.purchaseUnit)
+    var itemListEntries: [ItemListEntry]?
 
     @Relationship(deleteRule: .nullify, inverse: \StoreVariantInfo.pricingUnit)
     var storeVariantInfos: [StoreVariantInfo]?

@@ -1,23 +1,22 @@
 //
-//  ShoppingListItemFormView.swift
+//  ToBuyItemFormView.swift
 //  BuyThat
 //
-//  Created by Claude on 05.12.25.
+//  Created by Claude on 15.02.26.
 //
 
 import SwiftUI
 import SwiftData
 
-struct ShoppingListItemFormView: View {
+struct ToBuyItemFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \StoreVariantInfo.dateModified, order: .reverse) private var allStoreVariantInfos: [StoreVariantInfo]
     @Query(sort: \ProductVariant.dateCreated, order: .reverse) private var allVariants: [ProductVariant]
     @Query(sort: \Product.name) private var allProducts: [Product]
 
-    let shoppingList: ShoppingList
-    let item: ShoppingListItem?
-    let onSave: (ShoppingListItem) -> Void
+    let item: ToBuyItem?
+    let onSave: (ToBuyItem) -> Void
 
     @State private var searchText: String
     @State private var selectedStoreVariantInfo: StoreVariantInfo?
@@ -30,8 +29,7 @@ struct ShoppingListItemFormView: View {
     @State private var editingProduct: Product?
     @State private var showingCreateNewItem = false
 
-    init(shoppingList: ShoppingList, item: ShoppingListItem? = nil, onSave: @escaping (ShoppingListItem) -> Void) {
-        self.shoppingList = shoppingList
+    init(item: ToBuyItem? = nil, onSave: @escaping (ToBuyItem) -> Void) {
         self.item = item
         self.onSave = onSave
         _quantity = State(initialValue: item?.quantity ?? "1")
@@ -123,7 +121,6 @@ struct ShoppingListItemFormView: View {
                 NavigationStack {
                     CreateNewItemView(searchText: searchText) { createdItem in
                         showingCreateNewItem = false
-                        // Select the newly created item based on its type
                         if let storeInfo = createdItem as? StoreVariantInfo {
                             selectStoreInfo(storeInfo)
                         } else if let variant = createdItem as? ProductVariant {
@@ -182,20 +179,13 @@ struct ShoppingListItemFormView: View {
 
         let pricePerSelectedUnit: Decimal?
         if let unit = selectedPurchaseUnit {
-            // Purchase unit selected - convert from pricing unit
             pricePerSelectedUnit = info.priceForPurchaseUnit(unit)
         } else {
-            // Base unit selected - need to convert from pricing unit to base unit
             guard let price = info.pricePerUnit else { return nil }
 
             if let pricingUnit = info.pricingUnit {
-                // Convert from pricing unit to base unit
-                // conversionToBase represents: X pricing_units = 1 base_unit
-                // Example: 800g = 1 unit, so conversionToBase = 800
-                // If price per g = €0.01, then price per unit = €0.01 × 800 = €8.00
                 pricePerSelectedUnit = price * Decimal(pricingUnit.conversionToBase)
             } else {
-                // Pricing unit is the base unit
                 pricePerSelectedUnit = price
             }
         }
@@ -210,9 +200,8 @@ struct ShoppingListItemFormView: View {
     }
 
     private func save() {
-        let itemToSave: ShoppingListItem
+        let itemToSave: ToBuyItem
         if let existing = item {
-            // Update existing item
             existing.storeVariantInfo = selectedStoreVariantInfo
             existing.variant = selectedVariant
             existing.product = selectedProduct
@@ -220,14 +209,12 @@ struct ShoppingListItemFormView: View {
             existing.purchaseUnit = selectedPurchaseUnit
             itemToSave = existing
         } else {
-            // Create new item
-            itemToSave = ShoppingListItem(
+            itemToSave = ToBuyItem(
                 storeVariantInfo: selectedStoreVariantInfo,
                 variant: selectedVariant,
                 product: selectedProduct,
                 quantity: quantity,
-                purchaseUnit: selectedPurchaseUnit,
-                list: shoppingList
+                purchaseUnit: selectedPurchaseUnit
             )
             modelContext.insert(itemToSave)
         }
@@ -290,7 +277,7 @@ struct SelectedItemDetailsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             if let price = info.formattedPrice {
-                Text("•")
+                Text("\u{2022}")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(price)
@@ -363,11 +350,8 @@ struct EmptySearchStateView: View {
 }
 
 #Preview {
-    @Previewable @Query var shoppingLists: [ShoppingList]
-    if let list = shoppingLists.first {
-        ShoppingListItemFormView(shoppingList: list) { _ in
-            print("Item saved")
-        }
-        .modelContainer(PreviewContainer.sample)
+    ToBuyItemFormView { _ in
+        print("Item saved")
     }
+    .modelContainer(PreviewContainer.sample)
 }

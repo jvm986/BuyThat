@@ -1,27 +1,27 @@
 //
-//  ShoppingListFormView.swift
+//  ItemListFormView.swift
 //  BuyThat
 //
-//  Created by Claude on 04.12.25.
+//  Created by Claude on 15.02.26.
 //
 
 import SwiftUI
 import SwiftData
 
-struct ShoppingListFormView: View {
+struct ItemListFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @FocusState private var isNameFocused: Bool
 
-    let shoppingList: ShoppingList?
-    let onSave: (ShoppingList) -> Void
+    let itemList: ItemList?
+    let onSave: (ItemList) -> Void
 
     @State private var name: String
 
-    init(shoppingList: ShoppingList? = nil, onSave: @escaping (ShoppingList) -> Void) {
-        self.shoppingList = shoppingList
+    init(itemList: ItemList? = nil, onSave: @escaping (ItemList) -> Void) {
+        self.itemList = itemList
         self.onSave = onSave
-        _name = State(initialValue: shoppingList?.name ?? "")
+        _name = State(initialValue: itemList?.name ?? "")
     }
 
     var body: some View {
@@ -30,7 +30,7 @@ struct ShoppingListFormView: View {
                 TextField("Name", text: $name)
                     .focused($isNameFocused)
             }
-            .navigationTitle(shoppingList == nil ? "New Shopping List" : "Edit Shopping List")
+            .navigationTitle(itemList == nil ? "New List" : "Edit List")
             .onAppear {
                 isNameFocused = true
             }
@@ -47,13 +47,13 @@ struct ShoppingListFormView: View {
     }
 
     private func save() {
-        let listToSave: ShoppingList
-        if let existingList = shoppingList {
+        let listToSave: ItemList
+        if let existingList = itemList {
             existingList.name = name
             existingList.dateModified = Date()
             listToSave = existingList
         } else {
-            listToSave = ShoppingList(name: name)
+            listToSave = ItemList(name: name)
             modelContext.insert(listToSave)
         }
         try? modelContext.save()
@@ -63,7 +63,7 @@ struct ShoppingListFormView: View {
 }
 
 #Preview {
-    ShoppingListFormView { list in
+    ItemListFormView { list in
         print("Saved: \(list.name)")
     }
     .modelContainer(PreviewContainer.sample)

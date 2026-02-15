@@ -1,21 +1,21 @@
 //
-//  ShoppingList.swift
+//  ItemList.swift
 //  BuyThat
 //
-//  Created by James Maguire on 01.12.25.
+//  Created by Claude on 15.02.26.
 //
 
 import Foundation
 import SwiftData
 
 @Model
-final class ShoppingList {
+final class ItemList {
     var name: String
     var dateCreated: Date
     var dateModified: Date
 
-    @Relationship(deleteRule: .cascade, inverse: \ShoppingListItem.list)
-    var items: [ShoppingListItem]?
+    @Relationship(deleteRule: .cascade, inverse: \ItemListEntry.list)
+    var entries: [ItemListEntry]?
 
     init(name: String) {
         self.name = name
