@@ -23,7 +23,8 @@ struct PreviewContainer {
             ProductVariant.self,
             PurchaseUnit.self,
             Brand.self,
-            Tag.self
+            Tag.self,
+            ContainerType.self
         ])
 
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
@@ -81,6 +82,14 @@ struct PreviewContainer {
         context.insert(breadVariant)
         context.insert(tofuVariant)
 
+        // Create Container Types
+        let bottle = ContainerType(name: "bottle", isSystem: true)
+        let packet = ContainerType(name: "packet", isSystem: true)
+        let box = ContainerType(name: "box", isSystem: true)
+        context.insert(bottle)
+        context.insert(packet)
+        context.insert(box)
+
         // Create Purchase Units
         let milkBottleUnit = PurchaseUnit(
             unit: .liters,
@@ -88,18 +97,21 @@ struct PreviewContainer {
             isInverted: false,
             variant: milkVariant
         )
+        milkBottleUnit.containerType = bottle
         let breadPackageUnit = PurchaseUnit(
             unit: .kilograms,
             conversionToBase: 0.5,
             isInverted: false,
             variant: breadVariant
         )
+        breadPackageUnit.containerType = packet
         let tofuPackageUnit = PurchaseUnit(
             unit: .kilograms,
             conversionToBase: 0.4,
             isInverted: false,
             variant: tofuVariant
         )
+        tofuPackageUnit.containerType = box
         context.insert(milkBottleUnit)
         context.insert(breadPackageUnit)
         context.insert(tofuPackageUnit)

@@ -16,6 +16,7 @@ final class PurchaseUnit {
     var dateCreated: Date
 
     var variant: ProductVariant?
+    var containerType: ContainerType?
 
     @Relationship(deleteRule: .nullify, inverse: \ToBuyItem.purchaseUnit)
     var toBuyItems: [ToBuyItem]?
@@ -36,9 +37,9 @@ final class PurchaseUnit {
 }
 
 extension PurchaseUnit {
-    /// Returns the display name - the unit symbol
+    /// Returns the display name - container name if set, otherwise unit symbol
     var displayName: String {
-        unit.symbol
+        containerType?.name ?? unit.symbol
     }
 
     /// Shows the unit with conversion info (e.g., "1g = 150 units" or "1 units = 150g")
@@ -47,7 +48,7 @@ extension PurchaseUnit {
         return Self.formatConversion(
             conversionToBase: conversionToBase,
             baseUnitSymbol: baseUnitSymbol,
-            purchaseUnitSymbol: unit.symbol,
+            purchaseUnitSymbol: displayName,
             isInverted: isInverted
         )
     }

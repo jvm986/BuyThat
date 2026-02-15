@@ -120,9 +120,9 @@ struct ProductVariantFormView: View {
                             handleBaseUnitChange(newValue)
                         }
                     )) {
-                        Text("Count (units)").tag(MeasurementUnit.units)
-                        Text("Weight (kg)").tag(MeasurementUnit.kilograms)
-                        Text("Volume (L)").tag(MeasurementUnit.liters)
+                        ForEach(MeasurementUnit.allCases, id: \.self) { unit in
+                            Text(unit.displayLabel).tag(unit)
+                        }
                     }
                     .pickerStyle(.menu)
 
@@ -309,21 +309,43 @@ struct ProductVariantFormView: View {
     }
 
     private func handleBaseUnitChange(_ newValue: MeasurementUnit) {
-        // If editing existing variant with purchase units, show confirmation
-        if let existingVariant = variant,
-           let units = existingVariant.purchaseUnits,
-           !units.isEmpty,
-           let original = originalBaseUnit,
-           newValue != original {
-            pendingBaseUnit = newValue
-            showingBaseUnitChangeConfirmation = true
-        } else {
+        guard let existingVariant = variant,
+              let units = existingVariant.purchaseUnits,
+              !units.isEmpty,
+              let original = originalBaseUnit,
+              newValue != original else {
             // No purchase units or new variant, change directly
             selectedBaseUnit = newValue
             if let existingVariant = variant {
                 existingVariant.baseUnit = newValue
                 try? modelContext.save()
             }
+            return
+        }
+
+        // Same family — auto-convert purchase unit factors
+        if let factor = original.conversionFactor(to: newValue) {
+            for unit in units {
+                unit.conversionToBase /= factor
+            }
+            // Update StoreVariantInfo pricingUnitConversion for any that reference a pricingUnit
+            if let storeInfos = existingVariant.storeInfo {
+                for info in storeInfos {
+                    if info.pricingUnit != nil, let conv = info.pricingUnitConversion {
+                        info.pricingUnitConversion = conv / factor
+                    }
+                }
+            }
+            existingVariant.baseUnit = newValue
+            existingVariant.dateModified = Date()
+            try? modelContext.save()
+            selectedBaseUnit = newValue
+            originalBaseUnit = newValue
+            refreshTrigger = UUID()
+        } else {
+            // Cross-family — show confirmation dialog to clear purchase units
+            pendingBaseUnit = newValue
+            showingBaseUnitChangeConfirmation = true
         }
     }
 
