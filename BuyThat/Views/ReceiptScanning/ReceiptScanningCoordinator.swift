@@ -42,7 +42,6 @@ struct ReceiptScanningCoordinator: View {
                 case .apiKeySetup:
                     APIKeySetupView {
                         flowState = .selectingImage
-                        showingImageSourceDialog = true
                     }
 
                 case .selectingImage:
@@ -94,8 +93,6 @@ struct ReceiptScanningCoordinator: View {
         .onAppear {
             if !APIKeyManager.hasAPIKey() {
                 flowState = .apiKeySetup
-            } else {
-                showingImageSourceDialog = true
             }
         }
         .confirmationDialog("Add Receipt Image", isPresented: $showingImageSourceDialog, titleVisibility: .visible) {
@@ -111,6 +108,7 @@ struct ReceiptScanningCoordinator: View {
         }
         .fullScreenCover(isPresented: $showingCamera) {
             CameraView { image in
+                showingCamera = false
                 if let image {
                     selectedImage = image
                     startProcessing()
@@ -266,6 +264,7 @@ struct ReceiptScanningCoordinator: View {
         saveResult = ReceiptMatchingService.saveMatchedItems(
             matchedItems,
             store: store,
+            receiptDate: parsedReceipt?.receiptDate,
             context: modelContext
         )
         flowState = .saved

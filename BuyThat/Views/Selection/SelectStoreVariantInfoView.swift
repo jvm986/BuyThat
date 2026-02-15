@@ -16,16 +16,25 @@ struct SelectStoreVariantInfoView: View {
     @State private var showingCreateSheet = false
     @State private var editingInfo: StoreVariantInfo?
 
+    var filterVariant: ProductVariant? = nil
+    var filterStore: Store? = nil
     let onSelect: (StoreVariantInfo) -> Void
 
     private var filteredInfos: [StoreVariantInfo] {
-        if searchText.isEmpty {
-            return allStoreVariantInfos
+        var infos = allStoreVariantInfos
+        if let filterVariant {
+            infos = infos.filter { $0.variant == filterVariant }
         }
-        return allStoreVariantInfos.filter { info in
-            let displayText = "\(info.variant?.displayName ?? "") \(info.store?.name ?? "")"
-            return displayText.localizedCaseInsensitiveContains(searchText)
+        if let filterStore {
+            infos = infos.filter { $0.store == filterStore }
         }
+        if !searchText.isEmpty {
+            infos = infos.filter { info in
+                let displayText = "\(info.variant?.displayName ?? "") \(info.store?.name ?? "")"
+                return displayText.localizedCaseInsensitiveContains(searchText)
+            }
+        }
+        return infos
     }
 
     private var groupedByStore: [String: [StoreVariantInfo]] {
@@ -104,7 +113,7 @@ struct SelectStoreVariantInfoView: View {
             }
         }
         .sheet(isPresented: $showingCreateSheet) {
-            StoreVariantInfoFormView { newInfo in
+            StoreVariantInfoFormView(prefilledVariant: filterVariant) { newInfo in
                 showingCreateSheet = false
                 onSelect(newInfo)
                 dismiss()

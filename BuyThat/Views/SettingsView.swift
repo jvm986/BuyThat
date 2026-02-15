@@ -156,6 +156,26 @@ struct SettingsView: View {
             }
             Section {
                 NavigationLink {
+                    PurchaseHistoryView()
+                } label: {
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text("Purchase History")
+                            Text("Past shopping trips")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                }
+                .accessibilityIdentifier("PurchaseHistoryButton")
+            } header: {
+                Text("Purchase History")
+            }
+
+            Section {
+                NavigationLink {
                     APIKeyManagementView()
                 } label: {
                     Label {

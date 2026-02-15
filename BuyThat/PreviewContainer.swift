@@ -24,7 +24,9 @@ struct PreviewContainer {
             PurchaseUnit.self,
             Brand.self,
             Tag.self,
-            ContainerType.self
+            ContainerType.self,
+            ShoppingTrip.self,
+            ShoppingTripItem.self,
         ])
 
         let configuration = ModelConfiguration(isStoredInMemoryOnly: true)
@@ -152,6 +154,31 @@ struct PreviewContainer {
         context.insert(item1)
         context.insert(item2)
         context.insert(item3)
+
+        // Create Shopping Trips
+        let trip1 = ShoppingTrip(store: supermarketA, date: Calendar.current.date(byAdding: .day, value: -7, to: Date())!)
+        context.insert(trip1)
+
+        let tripItem1 = ShoppingTripItem(
+            trip: trip1, product: milk, variant: milkVariant, storeVariantInfo: milkAtA,
+            quantity: 2, pricePerItem: 2.49, receiptText: "MILK 1L", productName: "Milk"
+        )
+        let tripItem2 = ShoppingTripItem(
+            trip: trip1, product: bread, variant: breadVariant, storeVariantInfo: breadAtA,
+            quantity: 1, pricePerItem: 3.99, receiptText: "BREAD 500G", productName: "Bread"
+        )
+        context.insert(tripItem1)
+        context.insert(tripItem2)
+
+        let trip2 = ShoppingTrip(store: supermarketB, date: Calendar.current.date(byAdding: .day, value: -3, to: Date())!)
+        context.insert(trip2)
+
+        let tripItem3 = ShoppingTripItem(
+            trip: trip2, product: tofu, variant: tofuVariant, storeVariantInfo: tofuAtB,
+            quantity: 3, pricePerItem: 2.99, unitPrice: 7.48, unitPriceUnit: "kg",
+            receiptText: "TOFU 400G", productName: "Tofu"
+        )
+        context.insert(tripItem3)
 
         // Create a template list
         let weeklyList = ItemList(name: "Weekly Groceries")

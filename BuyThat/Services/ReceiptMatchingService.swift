@@ -22,6 +22,7 @@ enum ReceiptMatchingService {
                 products: products,
                 brands: brands
             )
+
             return MatchedReceiptItem(parsedItem: parsedItem, matchResult: matchResult)
         }
     }
@@ -103,68 +104,107 @@ enum ReceiptMatchingService {
     static func saveMatchedItems(
         _ items: [MatchedReceiptItem],
         store: Store,
+        receiptDate: Date?,
         context: ModelContext
     ) -> ReceiptSaveResult {
         var pricesUpdated = 0
         var productsCreated = 0
 
+        let trip = ShoppingTrip(store: store, date: receiptDate ?? Date())
+        context.insert(trip)
+
         let includedItems = items.filter(\.isIncluded)
 
         for item in includedItems {
-            switch item.matchResult {
-            case .matched(let product, let variant, let storeInfo):
-                if let variant = variant, let storeInfo = storeInfo {
-                    // Case 1: Update existing StoreVariantInfo price
-                    storeInfo.pricePerUnit = item.parsedItem.price
-                    storeInfo.dateModified = Date()
-                    pricesUpdated += 1
-                } else if let variant = variant {
-                    // Case 2: Create new StoreVariantInfo for existing variant
-                    let newStoreInfo = StoreVariantInfo(
-                        variant: variant,
-                        store: store,
-                        pricePerUnit: item.parsedItem.price
-                    )
-                    context.insert(newStoreInfo)
-                    pricesUpdated += 1
-                } else {
-                    // Case 3: Product matched but no variant matched
-                    let targetVariant: ProductVariant
-                    if let variants = product.variants, variants.count == 1, let single = variants.first {
-                        targetVariant = single
-                    } else {
-                        targetVariant = ProductVariant(product: product, baseUnit: .units)
-                        context.insert(targetVariant)
-                    }
-                    let newStoreInfo = StoreVariantInfo(
-                        variant: targetVariant,
-                        store: store,
-                        pricePerUnit: item.parsedItem.price
-                    )
-                    context.insert(newStoreInfo)
-                    pricesUpdated += 1
-                }
+            let product = item.effectiveProduct
+            let variant = item.effectiveVariant
+            let storeInfo = item.effectiveStoreInfo
 
-            case .noMatch:
-                // Case 4: Create new product + variant + store info
+            var resolvedProduct: Product?
+            var resolvedVariant: ProductVariant?
+            var resolvedStoreInfo: StoreVariantInfo?
+
+            let price = item.effectivePrice ?? item.parsedItem.priceForStorage
+            let quantity = item.effectiveQuantity
+
+            if let product, let variant, let storeInfo {
+                // Case 1: Product + variant + storeInfo → update existing price
+                storeInfo.pricePerUnit = price
+                storeInfo.dateModified = Date()
+                resolvedProduct = product
+                resolvedVariant = variant
+                resolvedStoreInfo = storeInfo
+                pricesUpdated += 1
+            } else if let product, let variant {
+                // Case 2: Product + variant, no storeInfo → create new StoreVariantInfo
+                let newStoreInfo = StoreVariantInfo(
+                    variant: variant,
+                    store: store,
+                    pricePerUnit: price
+                )
+                context.insert(newStoreInfo)
+                resolvedProduct = product
+                resolvedVariant = variant
+                resolvedStoreInfo = newStoreInfo
+                pricesUpdated += 1
+            } else if let product {
+                // Case 3: Product only → find/create variant, create StoreVariantInfo
+                let targetVariant: ProductVariant
+                if let variants = product.variants, variants.count == 1, let single = variants.first {
+                    targetVariant = single
+                } else {
+                    let baseUnit = MeasurementUnit.fromReceiptUnit(item.parsedItem.unitPriceUnit) ?? .units
+                    targetVariant = ProductVariant(product: product, baseUnit: baseUnit)
+                    context.insert(targetVariant)
+                }
+                let newStoreInfo = StoreVariantInfo(
+                    variant: targetVariant,
+                    store: store,
+                    pricePerUnit: price
+                )
+                context.insert(newStoreInfo)
+                resolvedProduct = product
+                resolvedVariant = targetVariant
+                resolvedStoreInfo = newStoreInfo
+                pricesUpdated += 1
+            } else {
+                // Case 4: No product → create product + variant + StoreVariantInfo
                 let newProduct = Product(name: item.editedProductName)
                 context.insert(newProduct)
 
-                let newVariant = ProductVariant(product: newProduct, baseUnit: .units)
+                let baseUnit = MeasurementUnit.fromReceiptUnit(item.parsedItem.unitPriceUnit) ?? .units
+                let newVariant = ProductVariant(product: newProduct, baseUnit: baseUnit)
                 context.insert(newVariant)
 
                 let newStoreInfo = StoreVariantInfo(
                     variant: newVariant,
                     store: store,
-                    pricePerUnit: item.parsedItem.price
+                    pricePerUnit: price
                 )
                 context.insert(newStoreInfo)
+                resolvedProduct = newProduct
+                resolvedVariant = newVariant
+                resolvedStoreInfo = newStoreInfo
                 productsCreated += 1
             }
+
+            let tripItem = ShoppingTripItem(
+                trip: trip,
+                product: resolvedProduct,
+                variant: resolvedVariant,
+                storeVariantInfo: resolvedStoreInfo,
+                quantity: quantity,
+                pricePerItem: item.parsedItem.price,
+                unitPrice: item.parsedItem.unitPrice,
+                unitPriceUnit: item.parsedItem.unitPriceUnit,
+                receiptText: item.parsedItem.receiptText,
+                productName: item.editedProductName
+            )
+            context.insert(tripItem)
         }
 
         try? context.save()
 
-        return ReceiptSaveResult(pricesUpdated: pricesUpdated, productsCreated: productsCreated)
+        return ReceiptSaveResult(pricesUpdated: pricesUpdated, productsCreated: productsCreated, shoppingTrip: trip)
     }
 }

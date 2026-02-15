@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import SwiftData
 
 struct ReceiptItemRow: View {
     @Binding var item: MatchedReceiptItem
@@ -16,16 +17,6 @@ struct ReceiptItemRow: View {
     }
 
     var body: some View {
-        DisclosureGroup {
-            expandedContent
-        } label: {
-            rowLabel
-        }
-    }
-
-    // MARK: - Collapsed Label
-
-    private var rowLabel: some View {
         HStack(spacing: 8) {
             Button {
                 item.isIncluded.toggle()
@@ -43,87 +34,45 @@ struct ReceiptItemRow: View {
                     .fontWeight(.medium)
                     .lineLimit(1)
 
-                if item.parsedItem.quantity > 1 {
-                    Text("Qty: \(item.parsedItem.quantity)")
+                if let productName = item.effectiveProduct?.name {
+                    Text(productName)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else {
+                    Text(item.editedProductName)
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .lineLimit(1)
                 }
             }
 
             Spacer()
 
-            Text(item.parsedItem.price as NSDecimalNumber, formatter: currencyFormatter)
-                .foregroundStyle(.secondary)
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(item.parsedItem.price as NSDecimalNumber, formatter: currencyFormatter)
+                    .foregroundStyle(.secondary)
+                if let unitPrice = item.parsedItem.unitPrice,
+                   let unitPriceUnit = item.parsedItem.unitPriceUnit {
+                    Text("\(unitPrice as NSDecimalNumber, formatter: currencyFormatter)/\(unitPriceUnit)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
         }
     }
 
     @ViewBuilder
     private var matchIndicator: some View {
-        switch item.matchResult {
-        case .matched(_, _, let storeInfo):
-            if storeInfo != nil {
-                Image(systemName: "circle.fill")
-                    .foregroundStyle(.green)
-            } else {
-                Image(systemName: "circle.fill")
-                    .foregroundStyle(.yellow)
-            }
-        case .noMatch:
+        if item.effectiveStoreInfo != nil {
+            Image(systemName: "circle.fill")
+                .foregroundStyle(.green)
+        } else if item.effectiveProduct != nil {
+            Image(systemName: "circle.fill")
+                .foregroundStyle(.yellow)
+        } else {
             Image(systemName: "circle.fill")
                 .foregroundStyle(.red)
-        }
-    }
-
-    // MARK: - Expanded Content
-
-    @ViewBuilder
-    private var expandedContent: some View {
-        switch item.matchResult {
-        case .matched(let product, let variant, let storeInfo):
-            matchedContent(product: product, variant: variant, storeInfo: storeInfo)
-        case .noMatch:
-            unmatchedContent
-        }
-    }
-
-    private func matchedContent(product: Product, variant: ProductVariant?, storeInfo: StoreVariantInfo?) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            LabeledContent("Product") {
-                Text(product.name)
-            }
-
-            if let variant {
-                LabeledContent("Variant") {
-                    Text(variant.displayNameShort)
-                }
-            }
-
-            if let storeInfo, let currentPrice = storeInfo.pricePerUnit {
-                LabeledContent("Current Price") {
-                    Text(currentPrice as NSDecimalNumber, formatter: currencyFormatter)
-                }
-                LabeledContent("New Price") {
-                    Text(item.parsedItem.price as NSDecimalNumber, formatter: currencyFormatter)
-                        .foregroundStyle(item.parsedItem.price != currentPrice ? .orange : .secondary)
-                }
-            } else {
-                LabeledContent("Status") {
-                    Text("New price entry")
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .font(.subheadline)
-    }
-
-    private var unmatchedContent: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            TextField("Product Name", text: $item.editedProductName)
-                .textFieldStyle(.roundedBorder)
-
-            Text("A new product, variant, and store price will be created.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 }

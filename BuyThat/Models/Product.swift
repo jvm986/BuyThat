@@ -20,6 +20,9 @@ final class Product {
     @Relationship(deleteRule: .cascade, inverse: \ProductVariant.product)
     var variants: [ProductVariant]?
 
+    @Relationship(deleteRule: .nullify, inverse: \ShoppingTripItem.product)
+    var shoppingTripItems: [ShoppingTripItem]?
+
     init(name: String, notes: String? = nil, tags: [Tag]? = nil) {
         self.name = name
         self.tags = tags

@@ -62,7 +62,11 @@ struct ReceiptReviewView: View {
 
             Section {
                 ForEach($items) { $item in
-                    ReceiptItemRow(item: $item)
+                    NavigationLink {
+                        ReceiptItemDetailView(item: $item, store: store)
+                    } label: {
+                        ReceiptItemRow(item: $item)
+                    }
                 }
             } header: {
                 Text("Items")

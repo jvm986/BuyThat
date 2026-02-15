@@ -16,7 +16,8 @@ enum OpenAIClient {
         image: UIImage,
         existingProducts: [String],
         existingBrands: [String],
-        existingStores: [String]
+        existingStores: [String],
+        existingTags: [String]
     ) async throws -> LLMReceiptResponse {
         guard let apiKey = APIKeyManager.retrieveAPIKey() else {
             throw OpenAIError.noAPIKey
@@ -26,7 +27,8 @@ enum OpenAIClient {
         let prompt = buildPrompt(
             existingProducts: existingProducts,
             existingBrands: existingBrands,
-            existingStores: existingStores
+            existingStores: existingStores,
+            existingTags: existingTags
         )
 
         let requestBody = ChatCompletionRequest(
@@ -101,19 +103,22 @@ enum OpenAIClient {
     private static func buildPrompt(
         existingProducts: [String],
         existingBrands: [String],
-        existingStores: [String]
+        existingStores: [String],
+        existingTags: [String]
     ) -> String {
         let productsList = existingProducts.isEmpty ? "None" : existingProducts.joined(separator: ", ")
         let brandsList = existingBrands.isEmpty ? "None" : existingBrands.joined(separator: ", ")
         let storesList = existingStores.isEmpty ? "None" : existingStores.joined(separator: ", ")
+        let tagsList = existingTags.isEmpty ? "None" : existingTags.joined(separator: ", ")
 
         return """
-        You are a receipt parser. Analyze this receipt image and extract structured data.
+        You are a receipt parser. Analyze this receipt image and extract ALL purchased product line items.
 
         I have the following existing data in my shopping app:
         - Products: [\(productsList)]
         - Brands: [\(brandsList)]
         - Stores: [\(storesList)]
+        - Tags: [\(tagsList)]
 
         Return a JSON object with this exact structure:
         {
@@ -125,19 +130,27 @@ enum OpenAIClient {
               "receiptText": "Text as shown on receipt",
               "price": 2.99,
               "quantity": 1,
-              "unit": "Package size if visible (e.g. 1L, 500g) or null",
+              "unit": "Package size if visible (e.g. 1L, 500g, 0.242kg) or null",
+              "unitPrice": 5.99,
+              "unitPriceUnit": "kg",
               "matchedProductName": "Best match from my products list or null",
-              "matchedBrandName": "Best match from my brands list or null"
+              "matchedBrandName": "Best match from my brands list or null",
+              "matchedTagNames": ["Organic"]
             }
           ]
         }
 
         Rules:
-        - Only include purchasable product line items (skip totals, taxes, discounts, headers)
-        - Price should be per-item after any discounts
-        - If quantity > 1, still report per-item price
+        - IMPORTANT: Extract EVERY purchasable product line item on the receipt. Do not skip any items. Receipts often have many items — include all of them.
+        - Skip ONLY totals, subtotals, tax lines, payment method lines, change, loyalty points, and receipt headers/footers
+        - "price" is the total line price paid for that item (after any discounts)
+        - "unitPrice" is the per-unit price (e.g. price per kg, per L) when shown on the receipt — this is common for weighed items like produce, meat, deli. Set to null if not shown.
+        - "unitPriceUnit" is the unit for unitPrice (e.g. "kg", "L"). Set to null if unitPrice is null.
+        - If quantity > 1, "price" should still be the per-item price (total line price divided by quantity)
         - Match to existing products/brands only when confident — use null otherwise
-        - For matchedProductName, match the core product (e.g. receipt "TES ORG MLK 1L" → "Milk")
+        - For matchedProductName, match the core product (e.g. receipt "TES ORG MLK 1L" → "Milk", "PAPRIKA" → "Paprika")
+        - Receipt text is often abbreviated — use your knowledge to identify products even from short codes
+        - "matchedTagNames" is an array of tags from my tags list that apply to this product (e.g. "Organic", "Gluten Free"). Only use tags from the provided list. Use an empty array if no tags apply.
         """
     }
 

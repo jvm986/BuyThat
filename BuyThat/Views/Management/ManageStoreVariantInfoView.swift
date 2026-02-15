@@ -15,6 +15,7 @@ struct ManageStoreVariantInfoView: View {
     @State private var searchText = ""
     @State private var showingCreateSheet = false
     @State private var editingInfo: StoreVariantInfo?
+    @State private var priceHistoryInfo: StoreVariantInfo?
 
     private var filteredInfos: [StoreVariantInfo] {
         if searchText.isEmpty {
@@ -54,6 +55,14 @@ struct ManageStoreVariantInfoView: View {
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .swipeActions(edge: .leading) {
+                            Button {
+                                priceHistoryInfo = info
+                            } label: {
+                                Label("Price History", systemImage: "chart.line.uptrend.xyaxis")
+                            }
+                            .tint(.blue)
+                        }
                     }
                     .onDelete { offsets in
                         let sortedInfos = (groupedByStore[storeName] ?? []).sorted { $0.variant?.displayName.localizedCaseInsensitiveCompare($1.variant?.displayName ?? "") == .orderedAscending }
@@ -82,6 +91,9 @@ struct ManageStoreVariantInfoView: View {
                 editingInfo = nil
             }
             .presentationDragIndicator(.visible)
+        }
+        .navigationDestination(item: $priceHistoryInfo) { info in
+            PriceHistoryView(storeVariantInfo: info)
         }
     }
 

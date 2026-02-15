@@ -4,6 +4,7 @@
 //
 
 import Foundation
+import SwiftData
 
 // MARK: - LLM Response Models
 
@@ -19,8 +20,11 @@ struct LLMReceiptItem: Codable {
     let price: Double
     let quantity: Int
     let unit: String?
+    let unitPrice: Double?
+    let unitPriceUnit: String?
     let matchedProductName: String?
     let matchedBrandName: String?
+    let matchedTagNames: [String]?
 }
 
 // MARK: - Parsed Receipt Models
@@ -38,8 +42,17 @@ struct ParsedReceiptItem: Identifiable {
     let price: Decimal
     let quantity: Int
     let unit: String?
+    let unitPrice: Decimal?
+    let unitPriceUnit: String?
     let matchedProductName: String?
     let matchedBrandName: String?
+    let matchedTagNames: [String]
+
+    /// The price to store in StoreVariantInfo.pricePerUnit.
+    /// Prefers the per-unit price (e.g. €5.99/kg) over the line total (e.g. €1.45 for 0.242kg).
+    var priceForStorage: Decimal {
+        unitPrice ?? price
+    }
 
     init(from llmItem: LLMReceiptItem) {
         self.id = UUID()
@@ -47,8 +60,11 @@ struct ParsedReceiptItem: Identifiable {
         self.price = Decimal(llmItem.price)
         self.quantity = llmItem.quantity
         self.unit = llmItem.unit
+        self.unitPrice = llmItem.unitPrice.map { Decimal($0) }
+        self.unitPriceUnit = llmItem.unitPriceUnit
         self.matchedProductName = llmItem.matchedProductName
         self.matchedBrandName = llmItem.matchedBrandName
+        self.matchedTagNames = llmItem.matchedTagNames ?? []
     }
 }
 
@@ -60,11 +76,19 @@ struct MatchedReceiptItem: Identifiable {
     var matchResult: MatchResult
     var isIncluded: Bool = true
     var editedProductName: String
+    var editedPrice: String
+    var editedQuantity: String
+
+    // User override for store variant info selection
+    var overrideStoreInfo: StoreVariantInfo?
+    var hasStoreInfoOverride: Bool = false
 
     init(parsedItem: ParsedReceiptItem, matchResult: MatchResult) {
         self.id = parsedItem.id
         self.parsedItem = parsedItem
         self.matchResult = matchResult
+        self.editedPrice = "\(parsedItem.priceForStorage)"
+        self.editedQuantity = "\(parsedItem.quantity)"
         switch matchResult {
         case .matched(let product, _, _):
             self.editedProductName = product.name
@@ -78,28 +102,47 @@ struct MatchedReceiptItem: Identifiable {
         case noMatch(suggestedName: String)
     }
 
-    var isMatched: Bool {
-        if case .matched = matchResult { return true }
-        return false
-    }
+    // MARK: - Effective values (override-aware)
 
-    var matchedProduct: Product? {
-        if case .matched(let product, _, _) = matchResult { return product }
-        return nil
-    }
-
-    var matchedVariant: ProductVariant? {
-        if case .matched(_, let variant, _) = matchResult { return variant }
-        return nil
-    }
-
-    var matchedStoreInfo: StoreVariantInfo? {
+    var effectiveStoreInfo: StoreVariantInfo? {
+        if hasStoreInfoOverride { return overrideStoreInfo }
         if case .matched(_, _, let storeInfo) = matchResult { return storeInfo }
         return nil
     }
 
+    var effectiveVariant: ProductVariant? {
+        if let storeInfo = effectiveStoreInfo { return storeInfo.variant }
+        if case .matched(_, let variant, _) = matchResult { return variant }
+        return nil
+    }
+
+    var effectiveProduct: Product? {
+        if let variant = effectiveVariant { return variant.product }
+        if case .matched(let product, _, _) = matchResult { return product }
+        return nil
+    }
+
+    var effectivelyMatched: Bool {
+        effectiveProduct != nil
+    }
+
+    var effectivePrice: Decimal? {
+        let normalized = editedPrice.replacingOccurrences(of: ",", with: ".")
+        return Decimal(string: normalized)
+    }
+
+    var effectiveQuantity: Int {
+        Int(editedQuantity) ?? parsedItem.quantity
+    }
+
+    // MARK: - Convenience properties
+
+    var isMatched: Bool {
+        effectivelyMatched
+    }
+
     var currentPrice: Decimal? {
-        matchedStoreInfo?.pricePerUnit
+        effectiveStoreInfo?.pricePerUnit
     }
 }
 
@@ -108,4 +151,5 @@ struct MatchedReceiptItem: Identifiable {
 struct ReceiptSaveResult {
     let pricesUpdated: Int
     let productsCreated: Int
+    let shoppingTrip: ShoppingTrip
 }

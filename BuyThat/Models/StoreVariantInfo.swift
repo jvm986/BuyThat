@@ -32,6 +32,9 @@ final class StoreVariantInfo {
     @Relationship(deleteRule: .nullify, inverse: \ItemListEntry.storeVariantInfo)
     var itemListEntries: [ItemListEntry]?
 
+    @Relationship(deleteRule: .nullify, inverse: \ShoppingTripItem.storeVariantInfo)
+    var shoppingTripItems: [ShoppingTripItem]?
+
     init(variant: ProductVariant?, store: Store?, pricePerUnit: Decimal? = nil, pricingUnit: PurchaseUnit? = nil) {
         self.variant = variant
         self.store = store
