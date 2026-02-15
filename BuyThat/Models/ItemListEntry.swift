@@ -12,6 +12,7 @@ import SwiftData
 final class ItemListEntry: BuyableItem {
     var quantity: String
     var dateAdded: Date
+    var sortOrder: Int = 0
 
     var list: ItemList?
 
@@ -20,7 +21,7 @@ final class ItemListEntry: BuyableItem {
     var product: Product?
     var purchaseUnit: PurchaseUnit?
 
-    init(storeVariantInfo: StoreVariantInfo? = nil, variant: ProductVariant? = nil, product: Product? = nil, quantity: String = "1", purchaseUnit: PurchaseUnit? = nil, list: ItemList? = nil) {
+    init(storeVariantInfo: StoreVariantInfo? = nil, variant: ProductVariant? = nil, product: Product? = nil, quantity: String = "1", purchaseUnit: PurchaseUnit? = nil, list: ItemList? = nil, sortOrder: Int = 0) {
         self.storeVariantInfo = storeVariantInfo
         self.variant = variant
         self.product = product
@@ -28,5 +29,6 @@ final class ItemListEntry: BuyableItem {
         self.purchaseUnit = purchaseUnit
         self.list = list
         self.dateAdded = Date()
+        self.sortOrder = sortOrder
     }
 }

@@ -118,6 +118,47 @@ struct StoreVariantInfoFormView: View {
                     TextField(pricePlaceholder, text: $priceText)
                         .keyboardType(.decimalPad)
                 }
+
+                if let info = storeVariantInfo {
+                    Section("Purchase History") {
+                        let purchases = (info.shoppingTripItems ?? [])
+                            .sorted { ($0.trip?.date ?? .distantPast) > ($1.trip?.date ?? .distantPast) }
+                        if purchases.isEmpty {
+                            Text("No purchases yet")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            ForEach(purchases) { item in
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        if let tripDate = item.trip?.date {
+                                            Text(tripDate, style: .date)
+                                        }
+                                        if let storeName = item.trip?.displayStoreName {
+                                            Text(storeName)
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                    Spacer()
+                                    VStack(alignment: .trailing, spacing: 2) {
+                                        Text(item.formattedPrice)
+                                        Text("Qty: \(item.quantity)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .onAppear {
+                if storeVariantInfo == nil {
+                    autoSelectSingleUnit()
+                }
+            }
+            .onChange(of: selectedVariant) {
+                autoSelectSingleUnit()
             }
             .navigationTitle(storeVariantInfo == nil ? "New Store Info" : "Edit Store Info")
             .toolbar {
@@ -159,6 +200,12 @@ struct StoreVariantInfoFormView: View {
                 }
                 .presentationDragIndicator(.visible)
             }
+        }
+    }
+
+    private func autoSelectSingleUnit() {
+        if let units = selectedVariant?.purchaseUnits, units.count == 1 {
+            selectedPricingUnit = units[0]
         }
     }
 

@@ -209,12 +209,16 @@ struct ToBuyItemFormView: View {
             existing.purchaseUnit = selectedPurchaseUnit
             itemToSave = existing
         } else {
+            let descriptor = FetchDescriptor<ToBuyItem>()
+            let existingItems = (try? modelContext.fetch(descriptor)) ?? []
+            let maxSortOrder = existingItems.map(\.sortOrder).max() ?? -1
             itemToSave = ToBuyItem(
                 storeVariantInfo: selectedStoreVariantInfo,
                 variant: selectedVariant,
                 product: selectedProduct,
                 quantity: quantity,
-                purchaseUnit: selectedPurchaseUnit
+                purchaseUnit: selectedPurchaseUnit,
+                sortOrder: maxSortOrder + 1
             )
             modelContext.insert(itemToSave)
         }
@@ -276,7 +280,7 @@ struct SelectedItemDetailsView: View {
             Text(info.store?.name ?? "")
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            if let price = info.formattedPrice {
+            if let price = info.formattedPricePerUnit {
                 Text("\u{2022}")
                     .font(.caption)
                     .foregroundStyle(.secondary)

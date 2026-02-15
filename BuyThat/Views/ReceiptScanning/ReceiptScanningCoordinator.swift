@@ -73,7 +73,9 @@ struct ReceiptScanningCoordinator: View {
                     }
 
                 case .saved:
-                    savedView
+                    if let trip = saveResult?.shoppingTrip {
+                        ShoppingTripDetailView(trip: trip)
+                    }
 
                 case .error:
                     errorView
@@ -81,11 +83,9 @@ struct ReceiptScanningCoordinator: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    if flowState != .saved {
-                        Button("Cancel") {
-                            cancelProcessing()
-                            dismiss()
-                        }
+                    Button(flowState == .saved ? "Done" : "Cancel") {
+                        cancelProcessing()
+                        dismiss()
                     }
                 }
             }
@@ -150,38 +150,6 @@ struct ReceiptScanningCoordinator: View {
 
             Button("Select Image") {
                 showingImageSourceDialog = true
-            }
-            .buttonStyle(.borderedProminent)
-        }
-        .padding()
-    }
-
-    // MARK: - Saved View
-
-    private var savedView: some View {
-        VStack(spacing: 24) {
-            Image(systemName: "checkmark.circle.fill")
-                .font(.system(size: 64))
-                .foregroundStyle(.green)
-
-            Text("Receipt Saved")
-                .font(.title2)
-                .fontWeight(.semibold)
-
-            if let result = saveResult {
-                VStack(spacing: 4) {
-                    if result.pricesUpdated > 0 {
-                        Text("Updated \(result.pricesUpdated) price\(result.pricesUpdated == 1 ? "" : "s")")
-                    }
-                    if result.productsCreated > 0 {
-                        Text("Added \(result.productsCreated) new product\(result.productsCreated == 1 ? "" : "s")")
-                    }
-                }
-                .foregroundStyle(.secondary)
-            }
-
-            Button("Done") {
-                dismiss()
             }
             .buttonStyle(.borderedProminent)
         }

@@ -115,7 +115,7 @@ enum ReceiptMatchingService {
 
         let includedItems = items.filter(\.isIncluded)
 
-        for item in includedItems {
+        for (sortIndex, item) in includedItems.enumerated() {
             let product = item.effectiveProduct
             let variant = item.effectiveVariant
             let storeInfo = item.effectiveStoreInfo
@@ -198,7 +198,8 @@ enum ReceiptMatchingService {
                 unitPrice: item.parsedItem.unitPrice,
                 unitPriceUnit: item.parsedItem.unitPriceUnit,
                 receiptText: item.parsedItem.receiptText,
-                productName: item.editedProductName
+                productName: item.editedProductName,
+                sortOrder: sortIndex
             )
             context.insert(tripItem)
         }

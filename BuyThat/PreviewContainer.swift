@@ -148,9 +148,9 @@ struct PreviewContainer {
         context.insert(tofuAtB)
 
         // Create To Buy Items
-        let item1 = ToBuyItem(storeVariantInfo: milkAtA, quantity: "2")
-        let item2 = ToBuyItem(storeVariantInfo: breadAtA, quantity: "1")
-        let item3 = ToBuyItem(storeVariantInfo: tofuAtB, quantity: "3")
+        let item1 = ToBuyItem(storeVariantInfo: milkAtA, quantity: "2", sortOrder: 0)
+        let item2 = ToBuyItem(storeVariantInfo: breadAtA, quantity: "1", sortOrder: 1)
+        let item3 = ToBuyItem(storeVariantInfo: tofuAtB, quantity: "3", sortOrder: 2)
         context.insert(item1)
         context.insert(item2)
         context.insert(item3)
@@ -161,11 +161,13 @@ struct PreviewContainer {
 
         let tripItem1 = ShoppingTripItem(
             trip: trip1, product: milk, variant: milkVariant, storeVariantInfo: milkAtA,
-            quantity: 2, pricePerItem: 2.49, receiptText: "MILK 1L", productName: "Milk"
+            quantity: 2, pricePerItem: 2.49, receiptText: "MILK 1L", productName: "Milk",
+            sortOrder: 0
         )
         let tripItem2 = ShoppingTripItem(
             trip: trip1, product: bread, variant: breadVariant, storeVariantInfo: breadAtA,
-            quantity: 1, pricePerItem: 3.99, receiptText: "BREAD 500G", productName: "Bread"
+            quantity: 1, pricePerItem: 3.99, receiptText: "BREAD 500G", productName: "Bread",
+            sortOrder: 1
         )
         context.insert(tripItem1)
         context.insert(tripItem2)
@@ -176,7 +178,8 @@ struct PreviewContainer {
         let tripItem3 = ShoppingTripItem(
             trip: trip2, product: tofu, variant: tofuVariant, storeVariantInfo: tofuAtB,
             quantity: 3, pricePerItem: 2.99, unitPrice: 7.48, unitPriceUnit: "kg",
-            receiptText: "TOFU 400G", productName: "Tofu"
+            receiptText: "TOFU 400G", productName: "Tofu",
+            sortOrder: 0
         )
         context.insert(tripItem3)
 
@@ -184,9 +187,9 @@ struct PreviewContainer {
         let weeklyList = ItemList(name: "Weekly Groceries")
         context.insert(weeklyList)
 
-        let entry1 = ItemListEntry(storeVariantInfo: milkAtA, quantity: "2", list: weeklyList)
-        let entry2 = ItemListEntry(storeVariantInfo: breadAtA, quantity: "1", list: weeklyList)
-        let entry3 = ItemListEntry(product: tofu, quantity: "1", list: weeklyList)
+        let entry1 = ItemListEntry(storeVariantInfo: milkAtA, quantity: "2", list: weeklyList, sortOrder: 0)
+        let entry2 = ItemListEntry(storeVariantInfo: breadAtA, quantity: "1", list: weeklyList, sortOrder: 1)
+        let entry3 = ItemListEntry(product: tofu, quantity: "1", list: weeklyList, sortOrder: 2)
         context.insert(entry1)
         context.insert(entry2)
         context.insert(entry3)
