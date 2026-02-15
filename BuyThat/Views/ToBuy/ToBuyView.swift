@@ -21,6 +21,7 @@ struct ToBuyView: View {
     @State private var editingItem: ToBuyItem?
     @State private var showingCreateNewItem = false
     @State private var selectedList: ItemList?
+    @State private var showingReceiptScanner = false
 
     // MARK: - Filtered Data
 
@@ -100,6 +101,14 @@ struct ToBuyView: View {
             .navigationTitle("To Buy")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showingReceiptScanner = true
+                    } label: {
+                        Label("Scan Receipt", systemImage: "doc.text.viewfinder")
+                    }
+                    .accessibilityIdentifier("ScanReceiptButton")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
                         SettingsView()
                     } label: {
@@ -142,6 +151,10 @@ struct ToBuyView: View {
             }
             .sheet(item: $selectedList) { list in
                 ListSelectionSheet(list: list)
+                    .presentationDragIndicator(.visible)
+            }
+            .fullScreenCover(isPresented: $showingReceiptScanner) {
+                ReceiptScanningCoordinator()
                     .presentationDragIndicator(.visible)
             }
         }

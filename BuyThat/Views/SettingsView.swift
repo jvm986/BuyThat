@@ -154,6 +154,25 @@ struct SettingsView: View {
             } header: {
                 Text("Stores")
             }
+            Section {
+                NavigationLink {
+                    APIKeyManagementView()
+                } label: {
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text("Receipt Scanning")
+                            Text("OpenAI API key for receipt analysis")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "doc.text.viewfinder")
+                    }
+                }
+                .accessibilityIdentifier("ReceiptScanningButton")
+            } header: {
+                Text("Receipt Scanning")
+            }
         }
         .navigationTitle("Settings")
     }
