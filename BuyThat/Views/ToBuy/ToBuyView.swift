@@ -11,7 +11,7 @@ import SwiftData
 struct ToBuyView: View {
     @Environment(\.modelContext) private var modelContext
 
-    @Query(sort: \ToBuyItem.dateAdded, order: .reverse) private var toBuyItems: [ToBuyItem]
+    @Query(sort: \ToBuyItem.sortOrder) private var toBuyItems: [ToBuyItem]
     @Query(sort: \ItemList.name) private var allLists: [ItemList]
     @Query(sort: \StoreVariantInfo.dateModified, order: .reverse) private var allStoreVariantInfos: [StoreVariantInfo]
     @Query(sort: \ProductVariant.dateCreated, order: .reverse) private var allVariants: [ProductVariant]
@@ -240,6 +240,7 @@ struct ToBuyView: View {
                         }
                 }
                 .onDelete(perform: deleteItems)
+                .onMove(perform: moveToBuyItems)
             } header: {
                 HStack {
                     Text("To Buy")
@@ -254,10 +255,15 @@ struct ToBuyView: View {
 
     // MARK: - Actions
 
+    private var nextSortOrder: Int {
+        (toBuyItems.map(\.sortOrder).max() ?? -1) + 1
+    }
+
     private func addQuickStoreItem(_ storeVariantInfo: StoreVariantInfo) {
         let item = ToBuyItem(
             storeVariantInfo: storeVariantInfo,
-            quantity: "1"
+            quantity: "1",
+            sortOrder: nextSortOrder
         )
         modelContext.insert(item)
         try? modelContext.save()
@@ -268,7 +274,8 @@ struct ToBuyView: View {
     private func addQuickVariant(_ variant: ProductVariant) {
         let item = ToBuyItem(
             variant: variant,
-            quantity: "1"
+            quantity: "1",
+            sortOrder: nextSortOrder
         )
         modelContext.insert(item)
         try? modelContext.save()
@@ -279,12 +286,22 @@ struct ToBuyView: View {
     private func addQuickProduct(_ product: Product) {
         let item = ToBuyItem(
             product: product,
-            quantity: "1"
+            quantity: "1",
+            sortOrder: nextSortOrder
         )
         modelContext.insert(item)
         try? modelContext.save()
         searchText = ""
         editingItem = item
+    }
+
+    private func moveToBuyItems(from source: IndexSet, to destination: Int) {
+        var items = Array(toBuyItems)
+        items.move(fromOffsets: source, toOffset: destination)
+        for (index, item) in items.enumerated() {
+            item.sortOrder = index
+        }
+        try? modelContext.save()
     }
 
     private func checkOffItem(_ item: ToBuyItem) {

@@ -74,26 +74,25 @@ struct ShoppingTripDetailView: View {
     @Bindable var trip: ShoppingTrip
 
     @State private var showingStoreSheet = false
+    @State private var navigateToNewItem = false
+    @State private var newItem: ShoppingTripItem?
 
     private var sortedItems: [ShoppingTripItem] {
-        (trip.items ?? []).sorted { $0.displayProductName.localizedCaseInsensitiveCompare($1.displayProductName) == .orderedAscending }
+        (trip.items ?? []).sorted { $0.sortOrder < $1.sortOrder }
     }
 
     var body: some View {
         List {
             Section("Summary") {
-                Button {
+                HStack {
+                    Text("Store")
+                    Spacer()
+                    Text(trip.displayStoreName)
+                        .foregroundStyle(.secondary)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
                     showingStoreSheet = true
-                } label: {
-                    LabeledContent("Store") {
-                        HStack {
-                            Text(trip.displayStoreName)
-                                .foregroundStyle(.primary)
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
                 }
 
                 DatePicker("Date", selection: $trip.date, displayedComponents: .date)
@@ -114,6 +113,33 @@ struct ShoppingTripDetailView: View {
                     }
                 }
                 .onDelete(perform: deleteItems)
+                .onMove(perform: moveShoppingTripItems)
+
+                Button {
+                    let nextSortOrder = (sortedItems.map(\.sortOrder).max() ?? -1) + 1
+                    let item = ShoppingTripItem(
+                        trip: trip,
+                        product: nil,
+                        variant: nil,
+                        storeVariantInfo: nil,
+                        quantity: 1,
+                        pricePerItem: 0,
+                        receiptText: "",
+                        productName: "",
+                        sortOrder: nextSortOrder
+                    )
+                    modelContext.insert(item)
+                    try? modelContext.save()
+                    newItem = item
+                    navigateToNewItem = true
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundStyle(.blue)
+                        Text("Add Item")
+                            .foregroundStyle(.primary)
+                    }
+                }
             }
         }
         .navigationTitle(trip.displayStoreName)
@@ -126,6 +152,20 @@ struct ShoppingTripDetailView: View {
                 }
             }
         }
+        .navigationDestination(isPresented: $navigateToNewItem) {
+            if let item = newItem {
+                ShoppingTripItemDetailView(item: item, store: trip.store)
+            }
+        }
+    }
+
+    private func moveShoppingTripItems(from source: IndexSet, to destination: Int) {
+        var items = sortedItems
+        items.move(fromOffsets: source, toOffset: destination)
+        for (index, item) in items.enumerated() {
+            item.sortOrder = index
+        }
+        try? modelContext.save()
     }
 
     private func deleteItems(at offsets: IndexSet) {
@@ -177,6 +217,7 @@ struct ShoppingTripItemDetailView: View {
     @State private var editedPrice: String
     @State private var editedQuantity: String
     @State private var showingStoreInfoSheet = false
+    @State private var editingStoreVariantInfo: StoreVariantInfo?
 
     private var currencyFormatter: NumberFormatter {
         let formatter = NumberFormatter()
@@ -195,9 +236,15 @@ struct ShoppingTripItemDetailView: View {
     var body: some View {
         List {
             Section("Receipt Info") {
-                LabeledContent("Receipt Text") {
-                    Text(item.receiptText)
+                HStack {
+                    Text("Receipt Text")
+                    Spacer()
+                    TextField("Receipt text", text: $item.receiptText)
+                        .multilineTextAlignment(.trailing)
                         .foregroundStyle(.secondary)
+                        .onChange(of: item.receiptText) {
+                            try? modelContext.save()
+                        }
                 }
                 if let unitPrice = item.unitPrice, let unitPriceUnit = item.unitPriceUnit {
                     LabeledContent("Unit Price") {
@@ -208,44 +255,33 @@ struct ShoppingTripItemDetailView: View {
             }
 
             Section("Store Item") {
-                Button {
-                    showingStoreInfoSheet = true
-                } label: {
-                    HStack {
-                        if let storeInfo = item.storeVariantInfo {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(storeInfo.variant?.displayName ?? "Unknown")
-                                    .foregroundStyle(.primary)
-                                if let price = storeInfo.formattedPricePerUnit {
-                                    Text(price)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        } else if let variant = item.variant {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(variant.displayName)
-                                    .foregroundStyle(.primary)
-                                Text("No store pricing")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } else if let product = item.product {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(product.name)
-                                    .foregroundStyle(.primary)
-                                Text("Product only")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        } else {
-                            Text("Select Store Item")
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.caption)
+                HStack {
+                    Text("Store Item")
+                    Spacer()
+                    if let storeInfo = item.storeVariantInfo {
+                        Text(storeInfo.variant?.displayName ?? "Unknown")
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } else if let variant = item.variant {
+                        Text(variant.displayName)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } else if let product = item.product {
+                        Text(product.name)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    } else {
+                        Text("Select")
                             .foregroundStyle(.tertiary)
+                    }
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    showingStoreInfoSheet = true
+                }
+                .onLongPressGesture {
+                    if let storeInfo = item.storeVariantInfo {
+                        editingStoreVariantInfo = storeInfo
                     }
                 }
             }
@@ -300,6 +336,12 @@ struct ShoppingTripItemDetailView: View {
                     try? modelContext.save()
                 }
             }
+        }
+        .sheet(item: $editingStoreVariantInfo) { storeInfo in
+            StoreVariantInfoFormView(storeVariantInfo: storeInfo) { _ in
+                editingStoreVariantInfo = nil
+            }
+            .presentationDragIndicator(.visible)
         }
     }
 }

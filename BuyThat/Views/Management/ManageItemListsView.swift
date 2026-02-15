@@ -72,7 +72,11 @@ struct ItemListDetailView: View {
     @State private var editingEntry: ItemListEntry?
 
     private var entries: [ItemListEntry] {
-        (list.entries ?? []).sorted { $0.dateAdded < $1.dateAdded }
+        (list.entries ?? []).sorted { $0.sortOrder < $1.sortOrder }
+    }
+
+    private var nextEntrySortOrder: Int {
+        (entries.map(\.sortOrder).max() ?? -1) + 1
     }
 
     private var filteredStoreInfos: [StoreVariantInfo] {
@@ -145,6 +149,7 @@ struct ItemListDetailView: View {
                                 }
                         }
                         .onDelete(perform: deleteEntries)
+                        .onMove(perform: moveEntries)
                     }
                 }
             }
@@ -191,7 +196,8 @@ struct ItemListDetailView: View {
         let entry = ItemListEntry(
             storeVariantInfo: storeVariantInfo,
             quantity: "1",
-            list: list
+            list: list,
+            sortOrder: nextEntrySortOrder
         )
         modelContext.insert(entry)
         list.dateModified = Date()
@@ -204,7 +210,8 @@ struct ItemListDetailView: View {
         let entry = ItemListEntry(
             variant: variant,
             quantity: "1",
-            list: list
+            list: list,
+            sortOrder: nextEntrySortOrder
         )
         modelContext.insert(entry)
         list.dateModified = Date()
@@ -217,13 +224,24 @@ struct ItemListDetailView: View {
         let entry = ItemListEntry(
             product: product,
             quantity: "1",
-            list: list
+            list: list,
+            sortOrder: nextEntrySortOrder
         )
         modelContext.insert(entry)
         list.dateModified = Date()
         try? modelContext.save()
         searchText = ""
         editingEntry = entry
+    }
+
+    private func moveEntries(from source: IndexSet, to destination: Int) {
+        var items = entries
+        items.move(fromOffsets: source, toOffset: destination)
+        for (index, item) in items.enumerated() {
+            item.sortOrder = index
+        }
+        list.dateModified = Date()
+        try? modelContext.save()
     }
 
     private func deleteEntries(at offsets: IndexSet) {
@@ -446,13 +464,15 @@ struct ItemListEntryFormView: View {
             existing.purchaseUnit = selectedPurchaseUnit
             entryToSave = existing
         } else {
+            let maxSortOrder = (list.entries ?? []).map(\.sortOrder).max() ?? -1
             entryToSave = ItemListEntry(
                 storeVariantInfo: selectedStoreVariantInfo,
                 variant: selectedVariant,
                 product: selectedProduct,
                 quantity: quantity,
                 purchaseUnit: selectedPurchaseUnit,
-                list: list
+                list: list,
+                sortOrder: maxSortOrder + 1
             )
             modelContext.insert(entryToSave)
         }

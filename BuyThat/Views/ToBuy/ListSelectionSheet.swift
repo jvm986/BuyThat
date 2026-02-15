@@ -23,7 +23,7 @@ struct ListSelectionSheet: View {
     }
 
     private var entries: [ItemListEntry] {
-        (list.entries ?? []).sorted { $0.dateAdded < $1.dateAdded }
+        (list.entries ?? []).sorted { $0.sortOrder < $1.sortOrder }
     }
 
     var body: some View {
@@ -129,6 +129,7 @@ struct ListSelectionSheet: View {
     private func addSelectedItems() {
         let descriptor = FetchDescriptor<ToBuyItem>()
         let existingItems = (try? modelContext.fetch(descriptor)) ?? []
+        var nextSortOrder = (existingItems.map(\.sortOrder).max() ?? -1) + 1
 
         let selectedEntries = entries.filter { selectedEntryIDs.contains($0.persistentModelID) }
 
@@ -141,9 +142,11 @@ struct ListSelectionSheet: View {
                     variant: entry.variant,
                     product: entry.product,
                     quantity: entry.quantity,
-                    purchaseUnit: entry.purchaseUnit
+                    purchaseUnit: entry.purchaseUnit,
+                    sortOrder: nextSortOrder
                 )
                 modelContext.insert(newItem)
+                nextSortOrder += 1
             }
         }
 

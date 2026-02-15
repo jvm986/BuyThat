@@ -11,6 +11,9 @@ struct ReceiptReviewView: View {
     @Binding var items: [MatchedReceiptItem]
     let onSave: () -> Void
 
+    @State private var navigateToNewItem = false
+    @State private var newItemIndex: Int?
+
     private var matchedCount: Int {
         items.filter(\.isMatched).count
     }
@@ -68,11 +71,33 @@ struct ReceiptReviewView: View {
                         ReceiptItemRow(item: $item)
                     }
                 }
+
+                Button {
+                    let newItem = MatchedReceiptItem(
+                        parsedItem: ParsedReceiptItem(),
+                        matchResult: .noMatch(suggestedName: "")
+                    )
+                    items.append(newItem)
+                    newItemIndex = items.count - 1
+                    navigateToNewItem = true
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                            .foregroundStyle(.blue)
+                        Text("Add Item")
+                            .foregroundStyle(.primary)
+                    }
+                }
             } header: {
                 Text("Items")
             }
         }
         .navigationTitle("Review Receipt")
+        .navigationDestination(isPresented: $navigateToNewItem) {
+            if let index = newItemIndex, index < items.count {
+                ReceiptItemDetailView(item: $items[index], store: store)
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {

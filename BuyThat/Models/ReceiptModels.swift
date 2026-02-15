@@ -66,6 +66,19 @@ struct ParsedReceiptItem: Identifiable {
         self.matchedBrandName = llmItem.matchedBrandName
         self.matchedTagNames = llmItem.matchedTagNames ?? []
     }
+
+    init() {
+        self.id = UUID()
+        self.receiptText = ""
+        self.price = 0
+        self.quantity = 1
+        self.unit = nil
+        self.unitPrice = nil
+        self.unitPriceUnit = nil
+        self.matchedProductName = nil
+        self.matchedBrandName = nil
+        self.matchedTagNames = []
+    }
 }
 
 // MARK: - Matched Receipt Models

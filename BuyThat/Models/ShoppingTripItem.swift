@@ -25,6 +25,7 @@ final class ShoppingTripItem {
     var unitPriceUnit: String?
     var receiptText: String
     var productName: String
+    var sortOrder: Int = 0
 
     init(
         trip: ShoppingTrip?,
@@ -36,7 +37,8 @@ final class ShoppingTripItem {
         unitPrice: Decimal? = nil,
         unitPriceUnit: String? = nil,
         receiptText: String,
-        productName: String
+        productName: String,
+        sortOrder: Int = 0
     ) {
         self.trip = trip
         self.product = product
@@ -48,6 +50,7 @@ final class ShoppingTripItem {
         self.unitPriceUnit = unitPriceUnit
         self.receiptText = receiptText
         self.productName = productName
+        self.sortOrder = sortOrder
     }
 }
 
