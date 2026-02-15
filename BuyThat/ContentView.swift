@@ -10,7 +10,7 @@ import SwiftData
 
 struct ContentView: View {
     var body: some View {
-        ShoppingListsView()
+        ToBuyView()
     }
 }
 
@@ -23,7 +23,8 @@ struct ContentView: View {
             Store.self,
             Tag.self,
             StoreVariantInfo.self,
-            ShoppingList.self,
-            ShoppingListItem.self
+            ToBuyItem.self,
+            ItemList.self,
+            ItemListEntry.self
         ], inMemory: true)
 }

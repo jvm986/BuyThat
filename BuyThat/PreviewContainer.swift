@@ -14,8 +14,9 @@ struct PreviewContainer {
 
     init() throws {
         let schema = Schema([
-            ShoppingList.self,
-            ShoppingListItem.self,
+            ToBuyItem.self,
+            ItemList.self,
+            ItemListEntry.self,
             Store.self,
             StoreVariantInfo.self,
             Product.self,
@@ -132,20 +133,24 @@ struct PreviewContainer {
         context.insert(breadAtA)
         context.insert(tofuAtB)
 
-        // Create Shopping Lists
-        let weeklyList = ShoppingList(name: "Weekly Shopping")
-        let quickList = ShoppingList(name: "Quick Trip")
-        context.insert(weeklyList)
-        context.insert(quickList)
-
-        // Create Shopping List Items
-        let item1 = ShoppingListItem(storeVariantInfo: milkAtA, quantity: "2", list: weeklyList)
-        let item2 = ShoppingListItem(storeVariantInfo: breadAtA, quantity: "1", list: weeklyList)
-        item2.isPurchased = true
-        let item3 = ShoppingListItem(storeVariantInfo: tofuAtB, quantity: "3", list: weeklyList)
+        // Create To Buy Items
+        let item1 = ToBuyItem(storeVariantInfo: milkAtA, quantity: "2")
+        let item2 = ToBuyItem(storeVariantInfo: breadAtA, quantity: "1")
+        let item3 = ToBuyItem(storeVariantInfo: tofuAtB, quantity: "3")
         context.insert(item1)
         context.insert(item2)
         context.insert(item3)
+
+        // Create a template list
+        let weeklyList = ItemList(name: "Weekly Groceries")
+        context.insert(weeklyList)
+
+        let entry1 = ItemListEntry(storeVariantInfo: milkAtA, quantity: "2", list: weeklyList)
+        let entry2 = ItemListEntry(storeVariantInfo: breadAtA, quantity: "1", list: weeklyList)
+        let entry3 = ItemListEntry(product: tofu, quantity: "1", list: weeklyList)
+        context.insert(entry1)
+        context.insert(entry2)
+        context.insert(entry3)
 
         try? context.save()
     }

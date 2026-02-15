@@ -19,7 +19,7 @@ extension BuyThatTests {
         let container = try ModelContainer(
             for: Product.self, ProductVariant.self, PurchaseUnit.self,
                  StoreVariantInfo.self, Store.self, Brand.self,
-                 ShoppingList.self, ShoppingListItem.self, Tag.self,
+                 ToBuyItem.self, ItemList.self, ItemListEntry.self, Tag.self,
             configurations: config
         )
         return ModelContext(container)
@@ -183,8 +183,8 @@ struct PriceConversionTests {
         #expect(storeInfo.pricingUnit == nil)
     }
 
-    @Test("Shopping list item estimated price")
-    func shoppingListEstimation() async throws {
+    @Test("To buy item estimated price")
+    func toBuyItemEstimation() async throws {
         let context = try testHelper.makeTestContainer()
 
         // Setup
@@ -199,12 +199,10 @@ struct PriceConversionTests {
             pricingUnit: purchaseUnit
         )
 
-        let shoppingList = ShoppingList(name: "Weekly Shopping")
-        let item = ShoppingListItem(
+        let item = ToBuyItem(
             storeVariantInfo: storeInfo,
             quantity: "3",
-            purchaseUnit: purchaseUnit,
-            list: shoppingList
+            purchaseUnit: purchaseUnit
         )
 
         context.insert(product)
@@ -212,7 +210,6 @@ struct PriceConversionTests {
         context.insert(purchaseUnit)
         context.insert(store)
         context.insert(storeInfo)
-        context.insert(shoppingList)
         context.insert(item)
         try context.save()
 
@@ -345,18 +342,16 @@ struct DataIntegrityTests {
     func purchaseUnitNullify() async throws {
         let context = try testHelper.makeTestContainer()
 
-        // Create shopping list item with purchase unit
+        // Create to buy item with purchase unit
         let product = Product(name: "Rice")
         let variant = ProductVariant(product: product, brand: nil, baseUnit: .kilograms)
         let purchaseUnit = PurchaseUnit(unit: .kilograms, conversionToBase: 1000, variant: variant)
         let store = Store(name: "Test Store")
         let storeInfo = StoreVariantInfo(variant: variant, store: store)
-        let shoppingList = ShoppingList(name: "Groceries")
-        let item = ShoppingListItem(
+        let item = ToBuyItem(
             storeVariantInfo: storeInfo,
             quantity: "2",
-            purchaseUnit: purchaseUnit,
-            list: shoppingList
+            purchaseUnit: purchaseUnit
         )
 
         context.insert(product)
@@ -364,7 +359,6 @@ struct DataIntegrityTests {
         context.insert(purchaseUnit)
         context.insert(store)
         context.insert(storeInfo)
-        context.insert(shoppingList)
         context.insert(item)
         try context.save()
 
@@ -372,7 +366,7 @@ struct DataIntegrityTests {
         context.delete(purchaseUnit)
         try context.save()
 
-        // Verify shopping list item still exists but reference is nullified
+        // Verify to buy item still exists but reference is nullified
         #expect(item.purchaseUnit == nil)
         #expect(item.quantity == "2")
         #expect(item.storeVariantInfo != nil)
@@ -397,18 +391,15 @@ struct EdgeCaseTests {
             store: store,
             pricePerUnit: Decimal(2.00)
         )
-        let shoppingList = ShoppingList(name: "Test List")
-        let item = ShoppingListItem(
+        let item = ToBuyItem(
             storeVariantInfo: storeInfo,
-            quantity: "abc",
-            list: shoppingList
+            quantity: "abc"
         )
 
         context.insert(product)
         context.insert(variant)
         context.insert(store)
         context.insert(storeInfo)
-        context.insert(shoppingList)
         context.insert(item)
         try context.save()
 
@@ -475,9 +466,8 @@ struct ModelBasicsTests {
 
     @Test("Default values set correctly")
     func modelDefaults() {
-        // Test ShoppingListItem defaults
-        let item = ShoppingListItem(storeVariantInfo: nil, quantity: "1")
-        #expect(item.isPurchased == false)
+        // Test ToBuyItem defaults
+        let item = ToBuyItem(storeVariantInfo: nil, quantity: "1")
         #expect(item.dateAdded <= Date())
 
         // Test ProductVariant defaults
@@ -509,6 +499,265 @@ struct ModelBasicsTests {
 
         #expect(storeInfo.pricingUnitConversion == 2.5)
         #expect(storeInfo.pricingUnit === pricingUnit)
+    }
+}
+
+// MARK: - Merge Quantity Tests
+
+@Suite("Merge Quantities")
+struct MergeQuantityTests {
+
+    @Test("Integer addition")
+    func integerAddition() {
+        #expect(MergeHelper.mergeQuantities("2", "3") == "5")
+    }
+
+    @Test("Decimal addition")
+    func decimalAddition() {
+        #expect(MergeHelper.mergeQuantities("1.5", "2") == "3.5")
+    }
+
+    @Test("Decimal result stays decimal")
+    func decimalResult() {
+        #expect(MergeHelper.mergeQuantities("1.5", "2.3") == "3.8")
+    }
+
+    @Test("Whole result from decimals formats as integer")
+    func wholeFromDecimals() {
+        #expect(MergeHelper.mergeQuantities("1.5", "2.5") == "4")
+    }
+
+    @Test("Non-numeric first quantity falls back to concatenation")
+    func nonNumericFirst() {
+        #expect(MergeHelper.mergeQuantities("some", "2") == "some+2")
+    }
+
+    @Test("Non-numeric second quantity falls back to concatenation")
+    func nonNumericSecond() {
+        #expect(MergeHelper.mergeQuantities("2", "lots") == "2+lots")
+    }
+
+    @Test("Both non-numeric falls back to concatenation")
+    func bothNonNumeric() {
+        #expect(MergeHelper.mergeQuantities("some", "more") == "some+more")
+    }
+
+    @Test("Zero quantities")
+    func zeroQuantities() {
+        #expect(MergeHelper.mergeQuantities("0", "5") == "5")
+    }
+}
+
+// MARK: - Merge Match Tests
+
+@Suite("Merge Item Matching")
+struct MergeMatchTests {
+    let testHelper = BuyThatTests()
+
+    @Test("Matches at store-level with same StoreVariantInfo and PurchaseUnit")
+    func storeLevelMatch() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Milk")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
+        let purchaseUnit = PurchaseUnit(unit: .liters, conversionToBase: 1, variant: variant)
+        let store = Store(name: "Store A")
+        let storeInfo = StoreVariantInfo(variant: variant, store: store)
+
+        let existingItem = ToBuyItem(storeVariantInfo: storeInfo, quantity: "2", purchaseUnit: purchaseUnit)
+
+        let entry = ItemListEntry(storeVariantInfo: storeInfo, quantity: "3", purchaseUnit: purchaseUnit)
+
+        context.insert(product)
+        context.insert(variant)
+        context.insert(purchaseUnit)
+        context.insert(store)
+        context.insert(storeInfo)
+        context.insert(existingItem)
+        context.insert(entry)
+        try context.save()
+
+        let match = MergeHelper.findMatch(for: entry, in: [existingItem])
+        #expect(match === existingItem)
+    }
+
+    @Test("No match when StoreVariantInfo differs")
+    func storeLevelNoMatchDifferentStore() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Milk")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
+        let storeA = Store(name: "Store A")
+        let storeB = Store(name: "Store B")
+        let storeInfoA = StoreVariantInfo(variant: variant, store: storeA)
+        let storeInfoB = StoreVariantInfo(variant: variant, store: storeB)
+
+        let existingItem = ToBuyItem(storeVariantInfo: storeInfoA, quantity: "2")
+        let entry = ItemListEntry(storeVariantInfo: storeInfoB, quantity: "3")
+
+        context.insert(product)
+        context.insert(variant)
+        context.insert(storeA)
+        context.insert(storeB)
+        context.insert(storeInfoA)
+        context.insert(storeInfoB)
+        context.insert(existingItem)
+        context.insert(entry)
+        try context.save()
+
+        let match = MergeHelper.findMatch(for: entry, in: [existingItem])
+        #expect(match == nil)
+    }
+
+    @Test("Matches at variant-level when neither has StoreVariantInfo")
+    func variantLevelMatch() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Bread")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .units)
+
+        let existingItem = ToBuyItem(variant: variant, quantity: "1")
+        let entry = ItemListEntry(variant: variant, quantity: "2")
+
+        context.insert(product)
+        context.insert(variant)
+        context.insert(existingItem)
+        context.insert(entry)
+        try context.save()
+
+        let match = MergeHelper.findMatch(for: entry, in: [existingItem])
+        #expect(match === existingItem)
+    }
+
+    @Test("No variant-level match when existing item has StoreVariantInfo")
+    func noVariantMatchWhenExistingHasStore() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Bread")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .units)
+        let store = Store(name: "Store A")
+        let storeInfo = StoreVariantInfo(variant: variant, store: store)
+
+        // Existing item has store info, entry does not
+        let existingItem = ToBuyItem(storeVariantInfo: storeInfo, quantity: "1")
+        let entry = ItemListEntry(variant: variant, quantity: "2")
+
+        context.insert(product)
+        context.insert(variant)
+        context.insert(store)
+        context.insert(storeInfo)
+        context.insert(existingItem)
+        context.insert(entry)
+        try context.save()
+
+        let match = MergeHelper.findMatch(for: entry, in: [existingItem])
+        #expect(match == nil)
+    }
+
+    @Test("Matches at product-level when neither has variant or StoreVariantInfo")
+    func productLevelMatch() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Eggs")
+
+        let existingItem = ToBuyItem(product: product, quantity: "6")
+        let entry = ItemListEntry(product: product, quantity: "6")
+
+        context.insert(product)
+        context.insert(existingItem)
+        context.insert(entry)
+        try context.save()
+
+        let match = MergeHelper.findMatch(for: entry, in: [existingItem])
+        #expect(match === existingItem)
+    }
+
+    @Test("No product-level match when existing item has variant")
+    func noProductMatchWhenExistingHasVariant() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Eggs")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .units)
+
+        let existingItem = ToBuyItem(variant: variant, quantity: "6")
+        let entry = ItemListEntry(product: product, quantity: "6")
+
+        context.insert(product)
+        context.insert(variant)
+        context.insert(existingItem)
+        context.insert(entry)
+        try context.save()
+
+        let match = MergeHelper.findMatch(for: entry, in: [existingItem])
+        #expect(match == nil)
+    }
+
+    @Test("No match when PurchaseUnits differ at store level")
+    func storeLevelNoMatchDifferentPurchaseUnit() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Milk")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
+        let unitA = PurchaseUnit(unit: .liters, conversionToBase: 1, variant: variant)
+        let unitB = PurchaseUnit(unit: .liters, conversionToBase: 2, variant: variant)
+        let store = Store(name: "Store A")
+        let storeInfo = StoreVariantInfo(variant: variant, store: store)
+
+        let existingItem = ToBuyItem(storeVariantInfo: storeInfo, quantity: "2", purchaseUnit: unitA)
+        let entry = ItemListEntry(storeVariantInfo: storeInfo, quantity: "3", purchaseUnit: unitB)
+
+        context.insert(product)
+        context.insert(variant)
+        context.insert(unitA)
+        context.insert(unitB)
+        context.insert(store)
+        context.insert(storeInfo)
+        context.insert(existingItem)
+        context.insert(entry)
+        try context.save()
+
+        let match = MergeHelper.findMatch(for: entry, in: [existingItem])
+        #expect(match == nil)
+    }
+}
+
+// MARK: - ItemList Cascade Delete Tests
+
+@Suite("ItemList Data Integrity")
+struct ItemListIntegrityTests {
+    let testHelper = BuyThatTests()
+
+    @Test("ItemList deletion cascades to entries")
+    func itemListCascade() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let list = ItemList(name: "Weekly")
+        let entry1 = ItemListEntry(quantity: "1", list: list)
+        let entry2 = ItemListEntry(quantity: "2", list: list)
+
+        context.insert(list)
+        context.insert(entry1)
+        context.insert(entry2)
+        try context.save()
+
+        let entry1ID = entry1.persistentModelID
+        let entry2ID = entry2.persistentModelID
+
+        context.delete(list)
+        try context.save()
+
+        let descriptor1 = FetchDescriptor<ItemListEntry>(
+            predicate: #Predicate { $0.persistentModelID == entry1ID }
+        )
+        let descriptor2 = FetchDescriptor<ItemListEntry>(
+            predicate: #Predicate { $0.persistentModelID == entry2ID }
+        )
+
+        let fetched1 = try context.fetch(descriptor1)
+        let fetched2 = try context.fetch(descriptor2)
+
+        #expect(fetched1.isEmpty)
+        #expect(fetched2.isEmpty)
     }
 }
 

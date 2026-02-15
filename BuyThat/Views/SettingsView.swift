@@ -13,6 +13,26 @@ struct SettingsView: View {
         List {
             Section {
                 NavigationLink {
+                    ManageItemListsView()
+                } label: {
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text("Lists")
+                            Text("Reusable template lists")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "list.bullet.rectangle")
+                    }
+                }
+                .accessibilityIdentifier("ListsButton")
+            } header: {
+                Text("Lists")
+            }
+
+            Section {
+                NavigationLink {
                     ManageTagsView()
                 } label: {
                     Label {
