@@ -11,6 +11,7 @@ import SwiftData
 struct PurchaseUnitFormView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
+    @Query(sort: \ContainerType.name) private var containerTypes: [ContainerType]
 
     let variant: ProductVariant
     let purchaseUnit: PurchaseUnit?
@@ -19,6 +20,7 @@ struct PurchaseUnitFormView: View {
     @State private var conversionText: String = ""
     @State private var selectedUnit: MeasurementUnit
     @State private var isInverted: Bool = false
+    @State private var selectedContainerType: ContainerType?
 
     init(variant: ProductVariant, purchaseUnit: PurchaseUnit? = nil, onSave: @escaping (PurchaseUnit) -> Void) {
         self.variant = variant
@@ -36,6 +38,7 @@ struct PurchaseUnitFormView: View {
 
             _conversionText = State(initialValue: convStr)
             _isInverted = State(initialValue: unit.isInverted)
+            _selectedContainerType = State(initialValue: unit.containerType)
         } else {
             _selectedUnit = State(initialValue: variant.baseUnit)
         }
@@ -52,9 +55,26 @@ struct PurchaseUnitFormView: View {
         conversion != nil
     }
 
+    private var effectiveLabel: String {
+        selectedContainerType?.name ?? selectedUnit.symbol
+    }
+
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Picker("Container Type", selection: $selectedContainerType) {
+                        Text("None").tag(ContainerType?.none)
+                        ForEach(containerTypes) { ct in
+                            Text(ct.name.capitalized).tag(ContainerType?.some(ct))
+                        }
+                    }
+                } header: {
+                    Text("Container (Optional)")
+                } footer: {
+                    Text("Give this purchase unit a name like \"bottle\" or \"bag\". Leave as None to use the measurement unit symbol.")
+                }
+
                 Section {
                     HStack {
                         TextField("Conversion Factor", text: $conversionText)
@@ -70,17 +90,17 @@ struct PurchaseUnitFormView: View {
                     }
 
                     Picker("Measurement Unit", selection: $selectedUnit) {
-                        ForEach([MeasurementUnit.units, .kilograms, .liters], id: \.self) { unit in
-                            Text(unit.symbol).tag(unit)
+                        ForEach(MeasurementUnit.allCases, id: \.self) { unit in
+                            Text(unit.displayLabel).tag(unit)
                         }
                     }
                 } header: {
                     Text("Measurement")
                 } footer: {
                     if isInverted {
-                        Text("How many \(variant.baseUnit.symbol) equals 1 \(selectedUnit.symbol)?")
+                        Text("How many \(variant.baseUnit.symbol) equals 1 \(effectiveLabel)?")
                     } else {
-                        Text("How many \(selectedUnit.symbol) equals 1 \(variant.baseUnit.symbol)?")
+                        Text("How many \(effectiveLabel) equals 1 \(variant.baseUnit.symbol)?")
                     }
                 }
 
@@ -104,7 +124,32 @@ struct PurchaseUnitFormView: View {
                         .disabled(!canSave)
                 }
             }
+            .onChange(of: selectedUnit) { oldValue, newValue in
+                autoFillConversion(from: oldValue, to: newValue)
+            }
         }
+    }
+
+    private func autoFillConversion(from oldUnit: MeasurementUnit, to newUnit: MeasurementUnit) {
+        // Only auto-fill if the conversion text is empty or was previously auto-filled
+        guard conversionText.isEmpty || wasAutoFilled(oldUnit) else { return }
+
+        if let factor = variant.baseUnit.conversionFactor(to: newUnit) {
+            let value = isInverted ? (1.0 / factor) : factor
+            conversionText = value.truncatingRemainder(dividingBy: 1) == 0
+                ? String(Int(value))
+                : String(format: "%.5g", value)
+        }
+    }
+
+    private func wasAutoFilled(_ unit: MeasurementUnit) -> Bool {
+        // Check if the current text matches what auto-fill would have set for the old unit
+        guard let factor = variant.baseUnit.conversionFactor(to: unit) else { return false }
+        let value = isInverted ? (1.0 / factor) : factor
+        let expected = value.truncatingRemainder(dividingBy: 1) == 0
+            ? String(Int(value))
+            : String(format: "%.5g", value)
+        return conversionText == expected
     }
 
     private func flipConversion() {
@@ -124,7 +169,7 @@ struct PurchaseUnitFormView: View {
         return PurchaseUnit.formatConversion(
             conversionToBase: storedConversion,
             baseUnitSymbol: variant.baseUnit.symbol,
-            purchaseUnitSymbol: selectedUnit.symbol,
+            purchaseUnitSymbol: effectiveLabel,
             isInverted: isInverted
         )
     }
@@ -137,6 +182,7 @@ struct PurchaseUnitFormView: View {
             existingUnit.unit = selectedUnit
             existingUnit.conversionToBase = conv
             existingUnit.isInverted = isInverted
+            existingUnit.containerType = selectedContainerType
             try? modelContext.save()
             onSave(existingUnit)
         } else {
@@ -147,6 +193,7 @@ struct PurchaseUnitFormView: View {
                 isInverted: isInverted,
                 variant: variant
             )
+            newUnit.containerType = selectedContainerType
             modelContext.insert(newUnit)
             try? modelContext.save()
             onSave(newUnit)

@@ -20,6 +20,7 @@ extension BuyThatTests {
             for: Product.self, ProductVariant.self, PurchaseUnit.self,
                  StoreVariantInfo.self, Store.self, Brand.self,
                  ToBuyItem.self, ItemList.self, ItemListEntry.self, Tag.self,
+                 ContainerType.self,
             configurations: config
         )
         return ModelContext(container)
@@ -762,3 +763,198 @@ struct ItemListIntegrityTests {
 }
 
 struct BuyThatTests {}
+
+// MARK: - MeasurementUnit Tests
+
+@Suite("MeasurementUnit Families and Conversion")
+struct MeasurementUnitTests {
+
+    @Test("Family detection for mass units")
+    func massFamily() {
+        #expect(MeasurementUnit.grams.family == .mass)
+        #expect(MeasurementUnit.kilograms.family == .mass)
+    }
+
+    @Test("Family detection for volume units")
+    func volumeFamily() {
+        #expect(MeasurementUnit.milliliters.family == .volume)
+        #expect(MeasurementUnit.liters.family == .volume)
+    }
+
+    @Test("Family detection for count")
+    func countFamily() {
+        #expect(MeasurementUnit.units.family == .count)
+    }
+
+    @Test("Same-family conversion factor kg to g")
+    func kgToGrams() {
+        let factor = MeasurementUnit.kilograms.conversionFactor(to: .grams)
+        #expect(factor == 1000)
+    }
+
+    @Test("Same-family conversion factor g to kg")
+    func gramsToKg() {
+        let factor = MeasurementUnit.grams.conversionFactor(to: .kilograms)
+        #expect(factor == 0.001)
+    }
+
+    @Test("Same-family conversion factor L to mL")
+    func litersToMl() {
+        let factor = MeasurementUnit.liters.conversionFactor(to: .milliliters)
+        #expect(factor == 1000)
+    }
+
+    @Test("Same-family conversion factor mL to L")
+    func mlToLiters() {
+        let factor = MeasurementUnit.milliliters.conversionFactor(to: .liters)
+        #expect(factor == 0.001)
+    }
+
+    @Test("Same unit conversion factor is 1")
+    func sameUnitConversion() {
+        #expect(MeasurementUnit.kilograms.conversionFactor(to: .kilograms) == 1)
+        #expect(MeasurementUnit.grams.conversionFactor(to: .grams) == 1)
+        #expect(MeasurementUnit.units.conversionFactor(to: .units) == 1)
+    }
+
+    @Test("Cross-family conversion returns nil")
+    func crossFamilyConversion() {
+        #expect(MeasurementUnit.kilograms.conversionFactor(to: .liters) == nil)
+        #expect(MeasurementUnit.grams.conversionFactor(to: .milliliters) == nil)
+        #expect(MeasurementUnit.units.conversionFactor(to: .kilograms) == nil)
+        #expect(MeasurementUnit.liters.conversionFactor(to: .grams) == nil)
+    }
+
+    @Test("Display labels are set")
+    func displayLabels() {
+        #expect(MeasurementUnit.grams.displayLabel == "Grams (g)")
+        #expect(MeasurementUnit.kilograms.displayLabel == "Kilograms (kg)")
+        #expect(MeasurementUnit.milliliters.displayLabel == "Milliliters (mL)")
+        #expect(MeasurementUnit.liters.displayLabel == "Liters (L)")
+        #expect(MeasurementUnit.units.displayLabel == "Count (units)")
+    }
+
+    @Test("toFamilyBase values")
+    func toFamilyBaseValues() {
+        #expect(MeasurementUnit.grams.toFamilyBase == 1)
+        #expect(MeasurementUnit.kilograms.toFamilyBase == 1000)
+        #expect(MeasurementUnit.milliliters.toFamilyBase == 1)
+        #expect(MeasurementUnit.liters.toFamilyBase == 1000)
+        #expect(MeasurementUnit.units.toFamilyBase == 1)
+    }
+}
+
+// MARK: - ContainerType and PurchaseUnit Display Tests
+
+@Suite("ContainerType Integration")
+struct ContainerTypeTests {
+    let testHelper = BuyThatTests()
+
+    @Test("PurchaseUnit displayName without containerType returns unit symbol")
+    func displayNameWithoutContainer() {
+        let product = Product(name: "Milk")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
+        let pu = PurchaseUnit(unit: .liters, conversionToBase: 1, variant: variant)
+
+        #expect(pu.displayName == "L")
+    }
+
+    @Test("PurchaseUnit displayName with containerType returns container name")
+    func displayNameWithContainer() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Milk")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
+        let bottle = ContainerType(name: "bottle", isSystem: true)
+        let pu = PurchaseUnit(unit: .liters, conversionToBase: 1, variant: variant)
+        pu.containerType = bottle
+
+        context.insert(product)
+        context.insert(variant)
+        context.insert(bottle)
+        context.insert(pu)
+        try context.save()
+
+        #expect(pu.displayName == "bottle")
+    }
+
+    @Test("PurchaseUnit displayWithConversion uses container name")
+    func displayWithConversionUsesContainer() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Juice")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
+        let carton = ContainerType(name: "carton", isSystem: true)
+        let pu = PurchaseUnit(unit: .liters, conversionToBase: 0.5, isInverted: true, variant: variant)
+        pu.containerType = carton
+
+        context.insert(product)
+        context.insert(variant)
+        context.insert(carton)
+        context.insert(pu)
+        try context.save()
+
+        #expect(pu.displayWithConversion == "1carton = 2L")
+    }
+
+    @Test("Price conversion works with new unit types")
+    func priceConversionWithGrams() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Spice")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .grams)
+
+        // Pricing unit: 100g packet (conversionToBase = 0.01, i.e., 0.01 packets = 1g)
+        let pricingUnit = PurchaseUnit(unit: .grams, conversionToBase: 0.01, variant: variant)
+
+        // Purchase unit: 50g packet (conversionToBase = 0.02, i.e., 0.02 packets = 1g)
+        let purchaseUnit = PurchaseUnit(unit: .grams, conversionToBase: 0.02, variant: variant)
+
+        let store = Store(name: "Test Store")
+
+        let storeInfo = StoreVariantInfo(
+            variant: variant,
+            store: store,
+            pricePerUnit: Decimal(string: "5.00")!,
+            pricingUnit: pricingUnit
+        )
+
+        context.insert(product)
+        context.insert(variant)
+        context.insert(pricingUnit)
+        context.insert(purchaseUnit)
+        context.insert(store)
+        context.insert(storeInfo)
+        try context.save()
+
+        // Price per 50g = 5.00 * (0.01 / 0.02) = 2.50
+        let price = storeInfo.priceForPurchaseUnit(purchaseUnit)
+        #expect(price == Decimal(string: "2.50")!)
+    }
+
+    @Test("ContainerType deletion nullifies PurchaseUnit reference")
+    func containerTypeDeletionNullifies() async throws {
+        let context = try testHelper.makeTestContainer()
+
+        let product = Product(name: "Water")
+        let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
+        let bottle = ContainerType(name: "bottle")
+        let pu = PurchaseUnit(unit: .liters, conversionToBase: 1, variant: variant)
+        pu.containerType = bottle
+
+        context.insert(product)
+        context.insert(variant)
+        context.insert(bottle)
+        context.insert(pu)
+        try context.save()
+
+        #expect(pu.containerType != nil)
+        #expect(pu.displayName == "bottle")
+
+        context.delete(bottle)
+        try context.save()
+
+        #expect(pu.containerType == nil)
+        #expect(pu.displayName == "L") // Falls back to unit symbol
+    }
+}
