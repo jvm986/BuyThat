@@ -23,6 +23,8 @@ struct BuyThatApp: App {
             ItemList.self,
             ItemListEntry.self,
             ContainerType.self,
+            ShoppingTrip.self,
+            ShoppingTripItem.self,
         ])
 
         // Use in-memory storage for UI testing to ensure clean state

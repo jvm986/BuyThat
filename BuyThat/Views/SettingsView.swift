@@ -154,6 +154,45 @@ struct SettingsView: View {
             } header: {
                 Text("Stores")
             }
+            Section {
+                NavigationLink {
+                    PurchaseHistoryView()
+                } label: {
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text("Purchase History")
+                            Text("Past shopping trips")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                }
+                .accessibilityIdentifier("PurchaseHistoryButton")
+            } header: {
+                Text("Purchase History")
+            }
+
+            Section {
+                NavigationLink {
+                    APIKeyManagementView()
+                } label: {
+                    Label {
+                        VStack(alignment: .leading) {
+                            Text("Receipt Scanning")
+                            Text("OpenAI API key for receipt analysis")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "doc.text.viewfinder")
+                    }
+                }
+                .accessibilityIdentifier("ReceiptScanningButton")
+            } header: {
+                Text("Receipt Scanning")
+            }
         }
         .navigationTitle("Settings")
     }

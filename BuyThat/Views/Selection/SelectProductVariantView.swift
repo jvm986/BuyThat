@@ -16,15 +16,18 @@ struct SelectProductVariantView: View {
     @State private var showingCreateSheet = false
     @State private var editingVariant: ProductVariant?
 
+    var filterProduct: Product? = nil
     let onSelect: (ProductVariant) -> Void
 
     private var filteredVariants: [ProductVariant] {
-        if searchText.isEmpty {
-            return allVariants
+        var variants = allVariants
+        if let filterProduct {
+            variants = variants.filter { $0.product == filterProduct }
         }
-        return allVariants.filter { variant in
-            variant.displayName.localizedCaseInsensitiveContains(searchText)
+        if !searchText.isEmpty {
+            variants = variants.filter { $0.displayName.localizedCaseInsensitiveContains(searchText) }
         }
+        return variants
     }
 
     var body: some View {
@@ -86,7 +89,7 @@ struct SelectProductVariantView: View {
             }
         }
         .sheet(isPresented: $showingCreateSheet) {
-            ProductVariantFormView { newVariant in
+            ProductVariantFormView(prefilledProduct: filterProduct) { newVariant in
                 showingCreateSheet = false
                 onSelect(newVariant)
                 dismiss()

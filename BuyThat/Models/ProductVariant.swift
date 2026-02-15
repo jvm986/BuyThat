@@ -26,6 +26,9 @@ final class ProductVariant {
     @Relationship(deleteRule: .cascade, inverse: \PurchaseUnit.variant)
     var purchaseUnits: [PurchaseUnit]?
 
+    @Relationship(deleteRule: .nullify, inverse: \ShoppingTripItem.variant)
+    var shoppingTripItems: [ShoppingTripItem]?
+
     init(product: Product?, brand: Brand? = nil, detail: String? = nil, baseUnit: MeasurementUnit = .units) {
         self.product = product
         self.brand = brand

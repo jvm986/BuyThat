@@ -69,4 +69,30 @@ enum MeasurementUnit: String, Codable, Hashable, Sendable, CaseIterable {
             (family: family, units: allCases.filter { $0.family == family })
         }
     }
+
+    /// Maps receipt unit strings (e.g. "kg", "L", "g", "mL", "pcs") to a MeasurementUnit.
+    static func fromReceiptUnit(_ unit: String?) -> MeasurementUnit? {
+        guard let unit, !unit.isEmpty else { return nil }
+
+        // Try exact raw value match first
+        if let exact = MeasurementUnit(rawValue: unit) {
+            return exact
+        }
+
+        // Case-insensitive match with common aliases
+        switch unit.lowercased() {
+        case "kg", "kgs", "kilogram", "kilograms":
+            return .kilograms
+        case "g", "gr", "gram", "grams", "gm":
+            return .grams
+        case "l", "ltr", "liter", "liters", "litre", "litres":
+            return .liters
+        case "ml", "milliliter", "milliliters", "millilitre", "millilitres":
+            return .milliliters
+        case "units", "unit", "pcs", "pc", "ea", "each", "stk", "stück", "stueck", "st":
+            return .units
+        default:
+            return nil
+        }
+    }
 }

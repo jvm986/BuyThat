@@ -16,6 +16,9 @@ final class Store {
     @Relationship(deleteRule: .cascade, inverse: \StoreVariantInfo.store)
     var storeVariantInfos: [StoreVariantInfo]?
 
+    @Relationship(deleteRule: .nullify, inverse: \ShoppingTrip.store)
+    var shoppingTrips: [ShoppingTrip]?
+
     init(name: String, notes: String? = nil) {
         self.name = name
         self.dateCreated = Date()
