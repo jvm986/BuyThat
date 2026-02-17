@@ -37,9 +37,14 @@ final class PurchaseUnit {
 }
 
 extension PurchaseUnit {
-    /// Returns the display name - container name if set, otherwise unit symbol
+    /// Returns the display name (singular) - container name if set, otherwise unit symbol
     var displayName: String {
-        containerType?.name ?? unit.symbol
+        containerType?.name ?? unit.singularSymbol
+    }
+
+    /// Returns the plural display name - container plural if set, otherwise unit symbol
+    var displayNamePlural: String {
+        containerType?.pluralName ?? unit.symbol
     }
 
     /// Shows the unit with conversion info (e.g., "1g = 150 units" or "1 units = 150g")
@@ -65,19 +70,19 @@ extension PurchaseUnit {
             : String(format: "%.5g", conversionToBase)
 
         if isInverted {
-            // Display as: "1units = 150g" (user entered it this way)
+            // Display as: "1 units = 150 g" (user entered it this way)
             let invertedValue = 1.0 / conversionToBase
             let invertedStr = invertedValue.truncatingRemainder(dividingBy: 1) == 0
                 ? String(Int(invertedValue))
                 : String(format: "%.5g", invertedValue)
 
-            let leftSide = "1\(purchaseUnitSymbol)"
-            let rightSide = "\(invertedStr)\(baseUnitSymbol)"
+            let leftSide = "1 \(purchaseUnitSymbol)"
+            let rightSide = "\(invertedStr) \(baseUnitSymbol)"
             return "\(leftSide) = \(rightSide)"
         } else {
-            // Display as: "1g = 0.0067 units" (standard direction)
-            let leftSide = "1\(baseUnitSymbol)"
-            let rightSide = "\(conversionValue)\(purchaseUnitSymbol)"
+            // Display as: "1 g = 0.0067 units" (standard direction)
+            let leftSide = "1 \(baseUnitSymbol)"
+            let rightSide = "\(conversionValue) \(purchaseUnitSymbol)"
             return "\(leftSide) = \(rightSide)"
         }
     }

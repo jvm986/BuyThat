@@ -18,6 +18,14 @@ enum MeasurementUnit: String, Codable, Hashable, Sendable, CaseIterable {
         self.rawValue
     }
 
+    /// Singular form for contexts like "1 unit" (metric symbols are unchanged)
+    var singularSymbol: String {
+        switch self {
+        case .units: return "unit"
+        default: return rawValue
+        }
+    }
+
     enum Family: String, CaseIterable {
         case mass
         case volume
