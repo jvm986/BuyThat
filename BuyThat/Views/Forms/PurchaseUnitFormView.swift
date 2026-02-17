@@ -40,7 +40,8 @@ struct PurchaseUnitFormView: View {
             _isInverted = State(initialValue: unit.isInverted)
             _selectedContainerType = State(initialValue: unit.containerType)
         } else {
-            _selectedUnit = State(initialValue: variant.baseUnit)
+            _selectedUnit = State(initialValue: .units)
+            _isInverted = State(initialValue: true)
         }
     }
 
@@ -56,7 +57,11 @@ struct PurchaseUnitFormView: View {
     }
 
     private var effectiveLabel: String {
-        selectedContainerType?.name ?? selectedUnit.symbol
+        selectedContainerType?.name ?? selectedUnit.singularSymbol
+    }
+
+    private var effectivePluralLabel: String {
+        selectedContainerType?.pluralName ?? selectedUnit.symbol
     }
 
     var body: some View {
@@ -100,7 +105,7 @@ struct PurchaseUnitFormView: View {
                     if isInverted {
                         Text("How many \(variant.baseUnit.symbol) equals 1 \(effectiveLabel)?")
                     } else {
-                        Text("How many \(effectiveLabel) equals 1 \(variant.baseUnit.symbol)?")
+                        Text("How many \(effectivePluralLabel) equals 1 \(variant.baseUnit.symbol)?")
                     }
                 }
 
