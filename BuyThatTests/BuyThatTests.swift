@@ -235,8 +235,8 @@ struct UnitDisplayTests {
             isInverted: false
         )
 
-        // Expected: "1g = 150units"
-        #expect(display == "1g = 150units")
+        // Expected: "1 g = 150 units"
+        #expect(display == "1 g = 150 units")
     }
 
     @Test("Inverted direction display")
@@ -249,8 +249,8 @@ struct UnitDisplayTests {
             isInverted: true
         )
 
-        // Expected: "1 bottle = 800g"
-        #expect(display == "1bottle = 800g")
+        // Expected: "1 bottle = 800 g"
+        #expect(display == "1 bottle = 800 g")
     }
 }
 
@@ -894,7 +894,7 @@ struct ContainerTypeTests {
         context.insert(pu)
         try context.save()
 
-        #expect(pu.displayWithConversion == "1carton = 2L")
+        #expect(pu.displayWithConversion == "1 carton = 2 L")
     }
 
     @Test("Price conversion works with new unit types")
