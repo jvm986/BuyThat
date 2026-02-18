@@ -29,7 +29,7 @@ extension BuyableItem {
     }
 
     var effectiveBaseUnit: MeasurementUnit {
-        effectiveVariant?.baseUnit ?? .units
+        effectiveVariant?.baseUnit ?? effectiveProduct?.defaultMeasurementUnit ?? .units
     }
 
     var estimatedPrice: Decimal? {

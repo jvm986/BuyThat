@@ -314,7 +314,7 @@ struct SelectedItemDetailsView: View {
     private var unitPickerView: some View {
         let effectiveVariant = selectedStoreVariantInfo?.variant ?? selectedVariant
         let effectiveProduct = effectiveVariant?.product ?? selectedProduct
-        let baseUnit = effectiveVariant?.baseUnit ?? .units
+        let baseUnit = effectiveVariant?.baseUnit ?? effectiveProduct?.defaultMeasurementUnit ?? .units
         let resolvedUnitName: String? = baseUnit == .units
             ? (effectiveVariant?.unitName ?? effectiveProduct?.defaultUnitName)
             : nil
@@ -327,11 +327,11 @@ struct SelectedItemDetailsView: View {
                     Text(unit.displayName).tag(unit as PurchaseUnit?)
                 }
             }
-        } else if let name = resolvedUnitName {
+        } else if resolvedUnitName != nil || baseUnit != .units {
             HStack {
                 Text("Unit")
                 Spacer()
-                Text(name)
+                Text(baseLabel)
                     .foregroundStyle(.secondary)
             }
         }
