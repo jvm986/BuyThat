@@ -101,26 +101,6 @@ struct SettingsView: View {
 
             Section {
                 NavigationLink {
-                    ManageContainerTypesView()
-                } label: {
-                    Label {
-                        VStack(alignment: .leading) {
-                            Text("Container Types")
-                            Text("Bottle, box, bag, etc.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    } icon: {
-                        Image(systemName: "shippingbox")
-                    }
-                }
-                .accessibilityIdentifier("ContainerTypesButton")
-            } header: {
-                Text("Measurements")
-            }
-
-            Section {
-                NavigationLink {
                     ManageStoresView()
                 } label: {
                     Label {

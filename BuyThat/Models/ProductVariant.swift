@@ -12,6 +12,7 @@ import SwiftData
 final class ProductVariant {
     var baseUnit: MeasurementUnit
     var detail: String?
+    var unitName: String?
     var dateCreated: Date
     var dateModified: Date
 

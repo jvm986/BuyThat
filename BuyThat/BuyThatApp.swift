@@ -1,6 +1,5 @@
 //
 //  BuyThatApp.swift
-//  BuyThat
 //
 //  Created by James Maguire on 30.11.25.
 //
@@ -22,7 +21,6 @@ struct BuyThatApp: App {
             ToBuyItem.self,
             ItemList.self,
             ItemListEntry.self,
-            ContainerType.self,
             ShoppingTrip.self,
             ShoppingTripItem.self,
         ])
@@ -33,19 +31,6 @@ struct BuyThatApp: App {
 
         do {
             let container = try ModelContainer(for: schema, configurations: [modelConfiguration])
-
-            // Seed system container types if none exist
-            let context = ModelContext(container)
-            let descriptor = FetchDescriptor<ContainerType>(
-                predicate: #Predicate { $0.isSystem == true }
-            )
-            if (try? context.fetch(descriptor))?.isEmpty ?? true {
-                for name in ContainerType.systemDefaults {
-                    context.insert(ContainerType(name: name, isSystem: true))
-                }
-                try? context.save()
-            }
-
             return container
         } catch {
             fatalError("Could not create ModelContainer: \(error)")

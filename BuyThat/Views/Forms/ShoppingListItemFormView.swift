@@ -157,6 +157,7 @@ struct ToBuyItemFormView: View {
         selectedStoreVariantInfo = info
         selectedVariant = nil
         selectedProduct = nil
+        selectedPurchaseUnit = info.variant?.purchaseUnits?.first
         searchText = ""
     }
 
@@ -164,6 +165,7 @@ struct ToBuyItemFormView: View {
         selectedStoreVariantInfo = nil
         selectedVariant = variant
         selectedProduct = nil
+        selectedPurchaseUnit = variant.purchaseUnits?.first
         searchText = ""
     }
 
@@ -171,6 +173,7 @@ struct ToBuyItemFormView: View {
         selectedStoreVariantInfo = nil
         selectedVariant = nil
         selectedProduct = product
+        selectedPurchaseUnit = nil
         searchText = ""
     }
 
@@ -242,8 +245,14 @@ struct SelectedItemDetailsView: View {
     let onEditProduct: (Product) -> Void
     let estimatedPrice: String?
 
+    private var levelLabel: String {
+        if selectedStoreVariantInfo != nil { return "Store Item" }
+        if selectedVariant != nil { return "Variant" }
+        return "Product"
+    }
+
     var body: some View {
-        Section("Selected Item") {
+        Section(levelLabel) {
             selectedItemContent
         }
 
@@ -303,13 +312,27 @@ struct SelectedItemDetailsView: View {
 
     @ViewBuilder
     private var unitPickerView: some View {
-        if let variant = (selectedStoreVariantInfo?.variant ?? selectedVariant),
-           let units = variant.purchaseUnits, !units.isEmpty {
+        let effectiveVariant = selectedStoreVariantInfo?.variant ?? selectedVariant
+        let effectiveProduct = effectiveVariant?.product ?? selectedProduct
+        let baseUnit = effectiveVariant?.baseUnit ?? .units
+        let resolvedUnitName: String? = baseUnit == .units
+            ? (effectiveVariant?.unitName ?? effectiveProduct?.defaultUnitName)
+            : nil
+        let baseLabel = resolvedUnitName ?? baseUnit.symbol
+
+        if let variant = effectiveVariant, let units = variant.purchaseUnits, !units.isEmpty {
             Picker("Unit", selection: $selectedPurchaseUnit) {
-                Text("Base measurement (\(variant.baseUnit.symbol))").tag(nil as PurchaseUnit?)
+                Text(baseLabel).tag(nil as PurchaseUnit?)
                 ForEach(units) { unit in
                     Text(unit.displayName).tag(unit as PurchaseUnit?)
                 }
+            }
+        } else if let name = resolvedUnitName {
+            HStack {
+                Text("Unit")
+                Spacer()
+                Text(name)
+                    .foregroundStyle(.secondary)
             }
         }
     }

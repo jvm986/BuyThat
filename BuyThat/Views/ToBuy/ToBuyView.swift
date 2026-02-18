@@ -263,6 +263,7 @@ struct ToBuyView: View {
         let item = ToBuyItem(
             storeVariantInfo: storeVariantInfo,
             quantity: "1",
+            purchaseUnit: storeVariantInfo.variant?.purchaseUnits?.first,
             sortOrder: nextSortOrder
         )
         modelContext.insert(item)
@@ -275,6 +276,7 @@ struct ToBuyView: View {
         let item = ToBuyItem(
             variant: variant,
             quantity: "1",
+            purchaseUnit: variant.purchaseUnits?.first,
             sortOrder: nextSortOrder
         )
         modelContext.insert(item)
@@ -391,9 +393,15 @@ struct ToBuyItemRow: View {
 
     private var quantityDisplay: String {
         let itemQty = item.quantity
+        let qty = Double(itemQty) ?? 0
 
         if let unit = item.purchaseUnit {
-            return "\(itemQty) \(unit.displayName)"
+            let name = qty == 1 ? unit.displayName : unit.displayNamePlural
+            return "\(itemQty) \(name)"
+        } else if item.effectiveBaseUnit == .units {
+            let unitName = item.effectiveVariant?.unitName ?? item.effectiveProduct?.defaultUnitName
+            guard let unitName else { return itemQty }
+            return qty == 1 ? "\(itemQty) \(unitName)" : "\(itemQty) \(unitName.pluralized)"
         } else {
             return "\(itemQty) \(item.effectiveBaseUnit.symbol)"
         }

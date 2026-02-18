@@ -13,13 +13,14 @@ struct CreateNewItemView: View {
     let searchText: String
     let onCreate: (Any) -> Void
 
-    @State private var selectedType: ItemType = .product
-    @State private var showingForm = false
+    @State private var selectedType: ItemType? = nil
 
-    enum ItemType: String, CaseIterable {
+    enum ItemType: String, CaseIterable, Identifiable {
         case product = "Product"
         case variant = "Variant"
         case storeItem = "Store Item"
+
+        var id: Self { self }
     }
 
     var body: some View {
@@ -28,7 +29,6 @@ struct CreateNewItemView: View {
                 ForEach(ItemType.allCases, id: \.self) { type in
                     Button {
                         selectedType = type
-                        showingForm = true
                     } label: {
                         HStack {
                             VStack(alignment: .leading) {
@@ -53,23 +53,23 @@ struct CreateNewItemView: View {
                 Button("Cancel") { dismiss() }
             }
         }
-        .sheet(isPresented: $showingForm) {
-            switch selectedType {
+        .sheet(item: $selectedType) { type in
+            switch type {
             case .product:
                 ProductFormView(prefillName: searchText) { product in
-                    showingForm = false
+                    selectedType = nil
                     onCreate(product)
                     dismiss()
                 }
             case .variant:
                 ProductVariantFormView { variant in
-                    showingForm = false
+                    selectedType = nil
                     onCreate(variant)
                     dismiss()
                 }
             case .storeItem:
                 StoreVariantInfoFormView { storeInfo in
-                    showingForm = false
+                    selectedType = nil
                     onCreate(storeInfo)
                     dismiss()
                 }
