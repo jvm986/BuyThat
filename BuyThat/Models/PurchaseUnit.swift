@@ -13,10 +13,10 @@ final class PurchaseUnit {
     var unit: MeasurementUnit
     var conversionToBase: Double
     var isInverted: Bool // True if entered as "1 purchase_unit = X base_units"
+    var unitName: String?
     var dateCreated: Date
 
     var variant: ProductVariant?
-    var containerType: ContainerType?
 
     @Relationship(deleteRule: .nullify, inverse: \ToBuyItem.purchaseUnit)
     var toBuyItems: [ToBuyItem]?
@@ -37,14 +37,21 @@ final class PurchaseUnit {
 }
 
 extension PurchaseUnit {
-    /// Returns the display name (singular) - container name if set, otherwise unit symbol
+    /// Returns the singular display name for this unit
     var displayName: String {
-        containerType?.name ?? unit.singularSymbol
+        if unit == .units {
+            return unitName ?? variant?.unitName ?? variant?.product?.defaultUnitName ?? unit.singularSymbol
+        }
+        return unit.singularSymbol
     }
 
-    /// Returns the plural display name - container plural if set, otherwise unit symbol
+    /// Returns the plural display name for this unit
     var displayNamePlural: String {
-        containerType?.pluralName ?? unit.symbol
+        if unit == .units {
+            let name = unitName ?? variant?.unitName ?? variant?.product?.defaultUnitName
+            return name?.pluralized ?? unit.symbol
+        }
+        return unit.symbol
     }
 
     /// Shows the unit with conversion info (e.g., "1g = 150 units" or "1 units = 150g")

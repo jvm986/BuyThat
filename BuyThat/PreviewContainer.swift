@@ -24,7 +24,6 @@ struct PreviewContainer {
             PurchaseUnit.self,
             Brand.self,
             Tag.self,
-            ContainerType.self,
             ShoppingTrip.self,
             ShoppingTripItem.self,
         ])
@@ -68,29 +67,21 @@ struct PreviewContainer {
         let milkVariant = ProductVariant(
             product: milk,
             brand: brandA,
-            baseUnit: .units
+            baseUnit: .liters
         )
         let breadVariant = ProductVariant(
             product: bread,
             brand: brandB,
-            baseUnit: .units
+            baseUnit: .kilograms
         )
         let tofuVariant = ProductVariant(
             product: tofu,
             brand: brandA,
-            baseUnit: .units
+            baseUnit: .kilograms
         )
         context.insert(milkVariant)
         context.insert(breadVariant)
         context.insert(tofuVariant)
-
-        // Create Container Types
-        let bottle = ContainerType(name: "bottle", isSystem: true)
-        let packet = ContainerType(name: "packet", isSystem: true)
-        let box = ContainerType(name: "box", isSystem: true)
-        context.insert(bottle)
-        context.insert(packet)
-        context.insert(box)
 
         // Create Purchase Units
         let milkBottleUnit = PurchaseUnit(
@@ -99,21 +90,19 @@ struct PreviewContainer {
             isInverted: false,
             variant: milkVariant
         )
-        milkBottleUnit.containerType = bottle
+        milkBottleUnit.unitName = "bottle"
         let breadPackageUnit = PurchaseUnit(
             unit: .kilograms,
             conversionToBase: 0.5,
             isInverted: false,
             variant: breadVariant
         )
-        breadPackageUnit.containerType = packet
         let tofuPackageUnit = PurchaseUnit(
             unit: .kilograms,
             conversionToBase: 0.4,
             isInverted: false,
             variant: tofuVariant
         )
-        tofuPackageUnit.containerType = box
         context.insert(milkBottleUnit)
         context.insert(breadPackageUnit)
         context.insert(tofuPackageUnit)

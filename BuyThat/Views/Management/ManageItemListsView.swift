@@ -196,6 +196,7 @@ struct ItemListDetailView: View {
         let entry = ItemListEntry(
             storeVariantInfo: storeVariantInfo,
             quantity: "1",
+            purchaseUnit: storeVariantInfo.variant?.purchaseUnits?.first,
             list: list,
             sortOrder: nextEntrySortOrder
         )
@@ -210,6 +211,7 @@ struct ItemListDetailView: View {
         let entry = ItemListEntry(
             variant: variant,
             quantity: "1",
+            purchaseUnit: variant.purchaseUnits?.first,
             list: list,
             sortOrder: nextEntrySortOrder
         )
@@ -301,8 +303,15 @@ struct ItemListEntryRow: View {
     }
 
     private var quantityDisplay: String {
+        let qty = Double(entry.quantity) ?? 0
+
         if let unit = entry.purchaseUnit {
-            return "\(entry.quantity) \(unit.displayName)"
+            let name = qty == 1 ? unit.displayName : unit.displayNamePlural
+            return "\(entry.quantity) \(name)"
+        } else if entry.effectiveBaseUnit == .units {
+            let unitName = entry.effectiveVariant?.unitName ?? entry.effectiveProduct?.defaultUnitName
+            guard let unitName else { return entry.quantity }
+            return qty == 1 ? "\(entry.quantity) \(unitName)" : "\(entry.quantity) \(unitName.pluralized)"
         } else {
             return "\(entry.quantity) \(entry.effectiveBaseUnit.symbol)"
         }
@@ -328,6 +337,9 @@ struct ItemListEntryFormView: View {
     @State private var selectedProduct: Product?
     @State private var quantity: String
     @State private var selectedPurchaseUnit: PurchaseUnit?
+    @State private var editingStoreVariantInfo: StoreVariantInfo?
+    @State private var editingVariant: ProductVariant?
+    @State private var editingProduct: Product?
     @State private var showingCreateNewItem = false
 
     init(list: ItemList, entry: ItemListEntry? = nil, onSave: @escaping (ItemListEntry) -> Void) {
@@ -395,9 +407,9 @@ struct ItemListEntryFormView: View {
                         selectedProduct: selectedProduct,
                         quantity: $quantity,
                         selectedPurchaseUnit: $selectedPurchaseUnit,
-                        onEditStoreInfo: { _ in },
-                        onEditVariant: { _ in },
-                        onEditProduct: { _ in },
+                        onEditStoreInfo: { editingStoreVariantInfo = $0 },
+                        onEditVariant: { editingVariant = $0 },
+                        onEditProduct: { editingProduct = $0 },
                         estimatedPrice: nil
                     )
                 } else {
@@ -430,6 +442,24 @@ struct ItemListEntryFormView: View {
                 }
                 .presentationDragIndicator(.visible)
             }
+            .sheet(item: $editingStoreVariantInfo) { info in
+                StoreVariantInfoFormView(storeVariantInfo: info) { _ in
+                    editingStoreVariantInfo = nil
+                }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $editingVariant) { variant in
+                ProductVariantFormView(variant: variant) { _ in
+                    editingVariant = nil
+                }
+                .presentationDragIndicator(.visible)
+            }
+            .sheet(item: $editingProduct) { product in
+                ProductFormView(product: product) { _ in
+                    editingProduct = nil
+                }
+                .presentationDragIndicator(.visible)
+            }
         }
     }
 
@@ -437,6 +467,7 @@ struct ItemListEntryFormView: View {
         selectedStoreVariantInfo = info
         selectedVariant = nil
         selectedProduct = nil
+        selectedPurchaseUnit = info.variant?.purchaseUnits?.first
         searchText = ""
     }
 
@@ -444,6 +475,7 @@ struct ItemListEntryFormView: View {
         selectedStoreVariantInfo = nil
         selectedVariant = variant
         selectedProduct = nil
+        selectedPurchaseUnit = variant.purchaseUnits?.first
         searchText = ""
     }
 
@@ -451,6 +483,7 @@ struct ItemListEntryFormView: View {
         selectedStoreVariantInfo = nil
         selectedVariant = nil
         selectedProduct = product
+        selectedPurchaseUnit = nil
         searchText = ""
     }
 

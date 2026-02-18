@@ -18,6 +18,8 @@ struct ProductFormView: View {
     let onSave: (Product) -> Void
 
     @State private var name: String
+    @State private var defaultMeasurementUnit: MeasurementUnit
+    @State private var defaultUnitName: String
     @State private var selectedTags: Set<Tag>
     @State private var showingTagSelection = false
     @State private var editingTag: Tag?
@@ -29,6 +31,8 @@ struct ProductFormView: View {
         self.prefillName = prefillName
         self.onSave = onSave
         _name = State(initialValue: product?.name ?? prefillName ?? "")
+        _defaultMeasurementUnit = State(initialValue: product?.defaultMeasurementUnit ?? .units)
+        _defaultUnitName = State(initialValue: product?.defaultUnitName ?? "")
         _selectedTags = State(initialValue: Set(product?.tags ?? []))
     }
 
@@ -43,6 +47,18 @@ struct ProductFormView: View {
                     TextField("Name", text: $name)
                         .focused($isNameFocused)
                         .accessibilityIdentifier("Product name")
+
+                    Picker("Default Measurement", selection: $defaultMeasurementUnit) {
+                        ForEach(MeasurementUnit.allCases, id: \.self) { unit in
+                            Text(unit.displayLabel).tag(unit)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    if defaultMeasurementUnit == .units {
+                        TextField("Default unit name (e.g. bulb, clove)", text: $defaultUnitName)
+                            .autocorrectionDisabled()
+                    }
                 }
 
                 Section("Tags") {
@@ -161,10 +177,14 @@ struct ProductFormView: View {
         if let existingProduct = product {
             existingProduct.name = name
             existingProduct.tags = Array(selectedTags)
+            existingProduct.defaultMeasurementUnit = defaultMeasurementUnit
+            existingProduct.defaultUnitName = defaultMeasurementUnit == .units && !defaultUnitName.isEmpty ? defaultUnitName : nil
             existingProduct.dateModified = Date()
             productToSave = existingProduct
         } else {
             productToSave = Product(name: name, tags: Array(selectedTags))
+            productToSave.defaultMeasurementUnit = defaultMeasurementUnit
+            productToSave.defaultUnitName = defaultMeasurementUnit == .units && !defaultUnitName.isEmpty ? defaultUnitName : nil
             modelContext.insert(productToSave)
         }
         try? modelContext.save()

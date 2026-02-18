@@ -20,6 +20,7 @@ struct ProductVariantFormView: View {
     @State private var detail: String
     @State private var selectedBaseUnit: MeasurementUnit
     @State private var originalBaseUnit: MeasurementUnit?
+    @State private var unitName: String
     @State private var editingProduct: Product?
     @State private var editingBrand: Brand?
     @State private var showingProductSelection = false
@@ -38,8 +39,10 @@ struct ProductVariantFormView: View {
         _selectedProduct = State(initialValue: variant?.product ?? prefilledProduct)
         _selectedBrand = State(initialValue: variant?.brand)
         _detail = State(initialValue: variant?.detail ?? "")
-        _selectedBaseUnit = State(initialValue: variant?.baseUnit ?? .units)
+        let defaultUnit = variant?.baseUnit ?? prefilledProduct?.defaultMeasurementUnit ?? .units
+        _selectedBaseUnit = State(initialValue: defaultUnit)
         _originalBaseUnit = State(initialValue: variant?.baseUnit)
+        _unitName = State(initialValue: variant?.unitName ?? "")
     }
 
     private var canSave: Bool {
@@ -126,6 +129,11 @@ struct ProductVariantFormView: View {
                     }
                     .pickerStyle(.menu)
 
+                    if selectedBaseUnit == .units {
+                        TextField("Unit name (e.g. bulb, onion)", text: $unitName)
+                            .autocorrectionDisabled()
+                    }
+
                     if variant == nil {
                         Button {
                             saveAndContinue()
@@ -136,6 +144,10 @@ struct ProductVariantFormView: View {
                     }
                 } header: {
                     Text("Measurement Type")
+                } footer: {
+                    if selectedBaseUnit == .units {
+                        Text("Optional. Overrides the product default unit name for this variant.")
+                    }
                 }
 
                 if let variant = variant {
@@ -237,6 +249,9 @@ struct ProductVariantFormView: View {
                 NavigationStack {
                     SelectProductView { product in
                         selectedProduct = product
+                        if variant == nil, let defaultUnit = product.defaultMeasurementUnit {
+                            selectedBaseUnit = defaultUnit
+                        }
                         showingProductSelection = false
                     }
                 }
@@ -402,17 +417,16 @@ struct ProductVariantFormView: View {
     private func saveAndContinue() {
         guard let product = selectedProduct else { return }
 
-        // Create new variant
         let newVariant = ProductVariant(
             product: product,
             brand: selectedBrand,
             detail: detail.isEmpty ? nil : detail,
             baseUnit: selectedBaseUnit
         )
+        newVariant.unitName = selectedBaseUnit == .units && !unitName.isEmpty ? unitName : nil
         modelContext.insert(newVariant)
         try? modelContext.save()
 
-        // Update state to edit the newly created variant (don't call onSave yet - wait for final dismiss)
         variant = newVariant
         originalBaseUnit = newVariant.baseUnit
         refreshTrigger = UUID()
@@ -427,6 +441,7 @@ struct ProductVariantFormView: View {
             existingVariant.brand = selectedBrand
             existingVariant.detail = detail.isEmpty ? nil : detail
             existingVariant.baseUnit = selectedBaseUnit
+            existingVariant.unitName = selectedBaseUnit == .units && !unitName.isEmpty ? unitName : nil
             existingVariant.dateModified = Date()
             variantToSave = existingVariant
         } else {
@@ -436,6 +451,7 @@ struct ProductVariantFormView: View {
                 detail: detail.isEmpty ? nil : detail,
                 baseUnit: selectedBaseUnit
             )
+            variantToSave.unitName = selectedBaseUnit == .units && !unitName.isEmpty ? unitName : nil
             modelContext.insert(variantToSave)
         }
         try? modelContext.save()

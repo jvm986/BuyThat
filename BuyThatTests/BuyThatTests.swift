@@ -20,7 +20,6 @@ extension BuyThatTests {
             for: Product.self, ProductVariant.self, PurchaseUnit.self,
                  StoreVariantInfo.self, Store.self, Brand.self,
                  ToBuyItem.self, ItemList.self, ItemListEntry.self, Tag.self,
-                 ContainerType.self,
             configurations: config
         )
         return ModelContext(container)
@@ -844,13 +843,13 @@ struct MeasurementUnitTests {
     }
 }
 
-// MARK: - ContainerType and PurchaseUnit Display Tests
+// MARK: - Unit Name and PurchaseUnit Display Tests
 
-@Suite("ContainerType Integration")
+@Suite("Unit Name Integration")
 struct ContainerTypeTests {
     let testHelper = BuyThatTests()
 
-    @Test("PurchaseUnit displayName without containerType returns unit symbol")
+    @Test("PurchaseUnit displayName without unitName returns unit symbol")
     func displayNameWithoutContainer() {
         let product = Product(name: "Milk")
         let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
@@ -859,38 +858,34 @@ struct ContainerTypeTests {
         #expect(pu.displayName == "L")
     }
 
-    @Test("PurchaseUnit displayName with containerType returns container name")
+    @Test("PurchaseUnit displayName with unitName returns custom name")
     func displayNameWithContainer() async throws {
         let context = try testHelper.makeTestContainer()
 
         let product = Product(name: "Milk")
         let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
-        let bottle = ContainerType(name: "bottle", isSystem: true)
-        let pu = PurchaseUnit(unit: .liters, conversionToBase: 1, variant: variant)
-        pu.containerType = bottle
+        let pu = PurchaseUnit(unit: .units, conversionToBase: 1, variant: variant)
+        pu.unitName = "bottle"
 
         context.insert(product)
         context.insert(variant)
-        context.insert(bottle)
         context.insert(pu)
         try context.save()
 
         #expect(pu.displayName == "bottle")
     }
 
-    @Test("PurchaseUnit displayWithConversion uses container name")
+    @Test("PurchaseUnit displayWithConversion uses unitName")
     func displayWithConversionUsesContainer() async throws {
         let context = try testHelper.makeTestContainer()
 
         let product = Product(name: "Juice")
         let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
-        let carton = ContainerType(name: "carton", isSystem: true)
-        let pu = PurchaseUnit(unit: .liters, conversionToBase: 0.5, isInverted: true, variant: variant)
-        pu.containerType = carton
+        let pu = PurchaseUnit(unit: .units, conversionToBase: 0.5, isInverted: true, variant: variant)
+        pu.unitName = "carton"
 
         context.insert(product)
         context.insert(variant)
-        context.insert(carton)
         context.insert(pu)
         try context.save()
 
@@ -932,29 +927,27 @@ struct ContainerTypeTests {
         #expect(price == Decimal(string: "2.50")!)
     }
 
-    @Test("ContainerType deletion nullifies PurchaseUnit reference")
+    @Test("PurchaseUnit unitName can be cleared, falls back to unit symbol")
     func containerTypeDeletionNullifies() async throws {
         let context = try testHelper.makeTestContainer()
 
         let product = Product(name: "Water")
         let variant = ProductVariant(product: product, brand: nil, baseUnit: .liters)
-        let bottle = ContainerType(name: "bottle")
-        let pu = PurchaseUnit(unit: .liters, conversionToBase: 1, variant: variant)
-        pu.containerType = bottle
+        let pu = PurchaseUnit(unit: .units, conversionToBase: 1, variant: variant)
+        pu.unitName = "bottle"
 
         context.insert(product)
         context.insert(variant)
-        context.insert(bottle)
         context.insert(pu)
         try context.save()
 
-        #expect(pu.containerType != nil)
+        #expect(pu.unitName != nil)
         #expect(pu.displayName == "bottle")
 
-        context.delete(bottle)
+        pu.unitName = nil
         try context.save()
 
-        #expect(pu.containerType == nil)
-        #expect(pu.displayName == "L") // Falls back to unit symbol
+        #expect(pu.unitName == nil)
+        #expect(pu.displayName == "unit") // Falls back to unit.singularSymbol
     }
 }
