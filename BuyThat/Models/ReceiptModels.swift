@@ -91,6 +91,7 @@ struct MatchedReceiptItem: Identifiable {
     var editedProductName: String
     var editedPrice: String
     var editedQuantity: String
+    var editedUnit: MeasurementUnit
 
     // User override for store variant info selection
     var overrideStoreInfo: StoreVariantInfo?
@@ -102,6 +103,9 @@ struct MatchedReceiptItem: Identifiable {
         self.matchResult = matchResult
         self.editedPrice = "\(parsedItem.priceForStorage)"
         self.editedQuantity = "\(parsedItem.quantity)"
+        self.editedUnit = MeasurementUnit.fromReceiptUnit(parsedItem.unitPriceUnit)
+            ?? MeasurementUnit.fromReceiptUnit(parsedItem.unit)
+            ?? .units
         switch matchResult {
         case .matched(let product, _, _):
             self.editedProductName = product.name

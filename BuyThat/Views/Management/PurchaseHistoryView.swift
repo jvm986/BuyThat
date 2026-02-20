@@ -307,7 +307,7 @@ struct ShoppingTripItemDetailView: View {
                     Text("Quantity")
                     Spacer()
                     TextField("1", text: $editedQuantity)
-                        .keyboardType(.numberPad)
+                        .keyboardType(.decimalPad)
                         .multilineTextAlignment(.trailing)
                         .frame(maxWidth: 100)
                         .onChange(of: editedQuantity) {
@@ -316,6 +316,18 @@ struct ShoppingTripItemDetailView: View {
                                 try? modelContext.save()
                             }
                         }
+                }
+
+                Picker("Unit", selection: $item.unitPriceUnit) {
+                    Text("None").tag(String?.none)
+                    ForEach(MeasurementUnit.groupedByFamily, id: \.family) { group in
+                        ForEach(group.units, id: \.self) { unit in
+                            Text(unit.displayLabel).tag(Optional(unit.rawValue))
+                        }
+                    }
+                }
+                .onChange(of: item.unitPriceUnit) {
+                    try? modelContext.save()
                 }
 
                 LabeledContent("Line Total") {

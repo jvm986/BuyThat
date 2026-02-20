@@ -153,8 +153,7 @@ enum ReceiptMatchingService {
                 if let variants = product.variants, variants.count == 1, let single = variants.first {
                     targetVariant = single
                 } else {
-                    let baseUnit = MeasurementUnit.fromReceiptUnit(item.parsedItem.unitPriceUnit) ?? .units
-                    targetVariant = ProductVariant(product: product, baseUnit: baseUnit)
+                    targetVariant = ProductVariant(product: product, baseUnit: item.editedUnit)
                     context.insert(targetVariant)
                 }
                 let newStoreInfo = StoreVariantInfo(
@@ -172,8 +171,7 @@ enum ReceiptMatchingService {
                 let newProduct = Product(name: item.editedProductName)
                 context.insert(newProduct)
 
-                let baseUnit = MeasurementUnit.fromReceiptUnit(item.parsedItem.unitPriceUnit) ?? .units
-                let newVariant = ProductVariant(product: newProduct, baseUnit: baseUnit)
+                let newVariant = ProductVariant(product: newProduct, baseUnit: item.editedUnit)
                 context.insert(newVariant)
 
                 let newStoreInfo = StoreVariantInfo(
