@@ -130,9 +130,17 @@ struct ReceiptItemDetailView: View {
                 Text("Quantity")
                 Spacer()
                 TextField("1", text: $item.editedQuantity)
-                    .keyboardType(.numberPad)
+                    .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(maxWidth: 100)
+            }
+
+            Picker("Unit", selection: $item.editedUnit) {
+                ForEach(MeasurementUnit.groupedByFamily, id: \.family) { group in
+                    ForEach(group.units, id: \.self) { unit in
+                        Text(unit.displayLabel).tag(unit)
+                    }
+                }
             }
 
             if let storeInfo = item.effectiveStoreInfo,
