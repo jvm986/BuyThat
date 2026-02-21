@@ -91,7 +91,7 @@ struct ReceiptScanningCoordinator: View {
             }
         }
         .onAppear {
-            if !APIKeyManager.hasAPIKey() {
+            if !APIKeyManager.hasAzureAPIKey() {
                 flowState = .apiKeySetup
             }
         }

@@ -161,7 +161,7 @@ struct SettingsView: View {
                     Label {
                         VStack(alignment: .leading) {
                             Text("Receipt Scanning")
-                            Text("OpenAI API key for receipt analysis")
+                            Text("Azure Document Intelligence for receipt analysis")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
