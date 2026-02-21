@@ -6,27 +6,6 @@
 import Foundation
 import SwiftData
 
-// MARK: - LLM Response Models
-
-struct LLMReceiptResponse: Codable {
-    let storeName: String?
-    let matchedStoreName: String?
-    let receiptDate: String?
-    let items: [LLMReceiptItem]
-}
-
-struct LLMReceiptItem: Codable {
-    let receiptText: String
-    let price: Double
-    let quantity: Int
-    let unit: String?
-    let unitPrice: Double?
-    let unitPriceUnit: String?
-    let matchedProductName: String?
-    let matchedBrandName: String?
-    let matchedTagNames: [String]?
-}
-
 // MARK: - Parsed Receipt Models
 
 struct ParsedReceipt {
@@ -40,13 +19,8 @@ struct ParsedReceiptItem: Identifiable {
     let id: UUID
     let receiptText: String
     let price: Decimal
-    let quantity: Int
-    let unit: String?
+    let quantity: Double
     let unitPrice: Decimal?
-    let unitPriceUnit: String?
-    let matchedProductName: String?
-    let matchedBrandName: String?
-    let matchedTagNames: [String]
 
     /// The price to store in StoreVariantInfo.pricePerUnit.
     /// Prefers the per-unit price (e.g. €5.99/kg) over the line total (e.g. €1.45 for 0.242kg).
@@ -54,17 +28,12 @@ struct ParsedReceiptItem: Identifiable {
         unitPrice ?? price
     }
 
-    init(from llmItem: LLMReceiptItem) {
+    init(receiptText: String, price: Decimal, quantity: Double, unitPrice: Decimal?) {
         self.id = UUID()
-        self.receiptText = llmItem.receiptText
-        self.price = Decimal(llmItem.price)
-        self.quantity = llmItem.quantity
-        self.unit = llmItem.unit
-        self.unitPrice = llmItem.unitPrice.map { Decimal($0) }
-        self.unitPriceUnit = llmItem.unitPriceUnit
-        self.matchedProductName = llmItem.matchedProductName
-        self.matchedBrandName = llmItem.matchedBrandName
-        self.matchedTagNames = llmItem.matchedTagNames ?? []
+        self.receiptText = receiptText
+        self.price = price
+        self.quantity = quantity
+        self.unitPrice = unitPrice
     }
 
     init() {
@@ -72,12 +41,7 @@ struct ParsedReceiptItem: Identifiable {
         self.receiptText = ""
         self.price = 0
         self.quantity = 1
-        self.unit = nil
         self.unitPrice = nil
-        self.unitPriceUnit = nil
-        self.matchedProductName = nil
-        self.matchedBrandName = nil
-        self.matchedTagNames = []
     }
 }
 
@@ -102,10 +66,10 @@ struct MatchedReceiptItem: Identifiable {
         self.parsedItem = parsedItem
         self.matchResult = matchResult
         self.editedPrice = "\(parsedItem.priceForStorage)"
-        self.editedQuantity = "\(parsedItem.quantity)"
-        self.editedUnit = MeasurementUnit.fromReceiptUnit(parsedItem.unitPriceUnit)
-            ?? MeasurementUnit.fromReceiptUnit(parsedItem.unit)
-            ?? .units
+        self.editedQuantity = parsedItem.quantity.truncatingRemainder(dividingBy: 1) == 0
+            ? "\(Int(parsedItem.quantity))"
+            : "\(parsedItem.quantity)"
+        self.editedUnit = .units
         switch matchResult {
         case .matched(let product, _, _):
             self.editedProductName = product.name
@@ -149,7 +113,7 @@ struct MatchedReceiptItem: Identifiable {
     }
 
     var effectiveQuantity: Int {
-        Int(editedQuantity) ?? parsedItem.quantity
+        Int(editedQuantity) ?? Int(parsedItem.quantity)
     }
 
     // MARK: - Convenience properties

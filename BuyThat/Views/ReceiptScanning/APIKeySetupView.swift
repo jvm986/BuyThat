@@ -8,6 +8,7 @@ import SwiftUI
 struct APIKeySetupView: View {
     let onKeyConfigured: () -> Void
 
+    @State private var endpoint = ""
     @State private var apiKey = ""
     @State private var errorMessage: String?
     @State private var isSaving = false
@@ -15,23 +16,31 @@ struct APIKeySetupView: View {
     var body: some View {
         Form {
             Section {
-                Text("BuyThat uses OpenAI's vision API to read receipt images and extract product and price information.")
+                Text("BuyThat uses Azure Document Intelligence to read receipt images and extract product and price information.")
                     .foregroundStyle(.secondary)
             }
 
             Section {
-                Link(destination: URL(string: "https://platform.openai.com/api-keys")!) {
-                    Label("Get an API key from OpenAI", systemImage: "arrow.up.right.square")
-                }
+                TextField("Endpoint URL", text: $endpoint)
+                    .textContentType(.URL)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+            } header: {
+                Text("Azure Endpoint")
+            } footer: {
+                Text("The endpoint URL for your Azure Document Intelligence resource (e.g. https://your-resource.cognitiveservices.azure.com).")
+            }
 
+            Section {
                 SecureField("API Key", text: $apiKey)
                     .textContentType(.password)
                     .autocorrectionDisabled()
                     .textInputAutocapitalization(.never)
             } header: {
-                Text("OpenAI API Key")
+                Text("Azure API Key")
             } footer: {
-                Text("Your key is stored securely in the device Keychain and never leaves your device except for API calls.")
+                Text("Your credentials are stored securely in the device Keychain and never leave your device except for API calls.")
             }
 
             if let errorMessage {
@@ -41,25 +50,31 @@ struct APIKeySetupView: View {
                 }
             }
         }
-        .navigationTitle("API Key Setup")
+        .navigationTitle("Azure Setup")
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    saveKey()
+                    saveCredentials()
                 }
-                .disabled(apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSaving)
+                .disabled(
+                    endpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    || apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    || isSaving
+                )
             }
         }
     }
 
-    private func saveKey() {
+    private func saveCredentials() {
         isSaving = true
         errorMessage = nil
 
+        let trimmedEndpoint = endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedKey = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
-            try APIKeyManager.saveAPIKey(trimmedKey)
+            try APIKeyManager.saveAzureEndpoint(trimmedEndpoint)
+            try APIKeyManager.saveAzureAPIKey(trimmedKey)
             onKeyConfigured()
         } catch {
             errorMessage = error.localizedDescription

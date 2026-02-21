@@ -6,7 +6,8 @@
 import SwiftUI
 
 struct APIKeyManagementView: View {
-    @State private var hasKey = APIKeyManager.hasAPIKey()
+    @State private var hasCredentials = APIKeyManager.hasAzureAPIKey()
+    @State private var newEndpoint = ""
     @State private var newKey = ""
     @State private var isEditing = false
     @State private var errorMessage: String?
@@ -14,7 +15,14 @@ struct APIKeyManagementView: View {
     var body: some View {
         Form {
             Section {
-                if hasKey && !isEditing {
+                if hasCredentials && !isEditing {
+                    HStack {
+                        Text("Endpoint")
+                        Spacer()
+                        Text("Configured")
+                            .foregroundStyle(.green)
+                    }
+
                     HStack {
                         Text("API Key")
                         Spacer()
@@ -22,36 +30,47 @@ struct APIKeyManagementView: View {
                             .foregroundStyle(.green)
                     }
 
-                    Button("Update Key") {
+                    Button("Update Credentials") {
                         isEditing = true
                     }
 
-                    Button("Remove Key", role: .destructive) {
-                        APIKeyManager.deleteAPIKey()
-                        hasKey = false
+                    Button("Remove Credentials", role: .destructive) {
+                        APIKeyManager.deleteAzureEndpoint()
+                        APIKeyManager.deleteAzureAPIKey()
+                        hasCredentials = false
                     }
                 } else {
-                    SecureField("OpenAI API Key", text: $newKey)
+                    TextField("Endpoint URL", text: $newEndpoint)
+                        .textContentType(.URL)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .keyboardType(.URL)
+
+                    SecureField("API Key", text: $newKey)
                         .textContentType(.password)
                         .autocorrectionDisabled()
                         .textInputAutocapitalization(.never)
 
                     Button("Save") {
-                        saveKey()
+                        saveCredentials()
                     }
-                    .disabled(newKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(
+                        newEndpoint.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                        || newKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    )
 
                     if isEditing {
                         Button("Cancel", role: .cancel) {
                             isEditing = false
+                            newEndpoint = ""
                             newKey = ""
                         }
                     }
                 }
             } header: {
-                Text("OpenAI API Key")
+                Text("Azure Document Intelligence")
             } footer: {
-                Text("Used for receipt scanning. Your key is stored securely in the device Keychain.")
+                Text("Used for receipt scanning. Your credentials are stored securely in the device Keychain.")
             }
 
             if let errorMessage {
@@ -60,24 +79,21 @@ struct APIKeyManagementView: View {
                         .foregroundStyle(.red)
                 }
             }
-
-            Section {
-                Link(destination: URL(string: "https://platform.openai.com/api-keys")!) {
-                    Label("Manage keys on OpenAI", systemImage: "arrow.up.right.square")
-                }
-            }
         }
         .navigationTitle("Receipt Scanning")
     }
 
-    private func saveKey() {
+    private func saveCredentials() {
         errorMessage = nil
+        let trimmedEndpoint = newEndpoint.trimmingCharacters(in: .whitespacesAndNewlines)
         let trimmedKey = newKey.trimmingCharacters(in: .whitespacesAndNewlines)
 
         do {
-            try APIKeyManager.saveAPIKey(trimmedKey)
-            hasKey = true
+            try APIKeyManager.saveAzureEndpoint(trimmedEndpoint)
+            try APIKeyManager.saveAzureAPIKey(trimmedKey)
+            hasCredentials = true
             isEditing = false
+            newEndpoint = ""
             newKey = ""
         } catch {
             errorMessage = error.localizedDescription

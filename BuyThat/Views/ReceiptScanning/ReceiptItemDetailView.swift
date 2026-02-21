@@ -52,14 +52,15 @@ struct ReceiptItemDetailView: View {
             }
             if item.parsedItem.quantity > 1 {
                 LabeledContent("Quantity") {
-                    Text("\(item.parsedItem.quantity)")
+                    Text(item.parsedItem.quantity.truncatingRemainder(dividingBy: 1) == 0
+                         ? "\(Int(item.parsedItem.quantity))"
+                         : "\(item.parsedItem.quantity)")
                         .foregroundStyle(.secondary)
                 }
             }
-            if let unitPrice = item.parsedItem.unitPrice,
-               let unitPriceUnit = item.parsedItem.unitPriceUnit {
+            if let unitPrice = item.parsedItem.unitPrice {
                 LabeledContent("Unit Price") {
-                    Text("\(unitPrice as NSDecimalNumber, formatter: currencyFormatter)/\(unitPriceUnit)")
+                    Text(unitPrice as NSDecimalNumber, formatter: currencyFormatter)
                         .foregroundStyle(.secondary)
                 }
             }

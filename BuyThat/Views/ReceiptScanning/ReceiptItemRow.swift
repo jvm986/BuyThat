@@ -52,9 +52,8 @@ struct ReceiptItemRow: View {
             VStack(alignment: .trailing, spacing: 2) {
                 Text(item.parsedItem.price as NSDecimalNumber, formatter: currencyFormatter)
                     .foregroundStyle(.secondary)
-                if let unitPrice = item.parsedItem.unitPrice,
-                   let unitPriceUnit = item.parsedItem.unitPriceUnit {
-                    Text("\(unitPrice as NSDecimalNumber, formatter: currencyFormatter)/\(unitPriceUnit)")
+                if let unitPrice = item.parsedItem.unitPrice {
+                    Text("\(unitPrice as NSDecimalNumber, formatter: currencyFormatter)/unit")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
