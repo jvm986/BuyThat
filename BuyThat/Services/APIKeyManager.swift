@@ -7,13 +7,47 @@ import Foundation
 import Security
 
 enum APIKeyManager {
-    private static let service = "com.buythat.openai.apikey"
-    private static let account = "openai-api-key"
+    private static let service = "com.buythat.azure-di"
+    private static let endpointAccount = "azure-di-endpoint"
+    private static let keyAccount = "azure-di-key"
 
-    static func saveAPIKey(_ key: String) throws {
-        let data = Data(key.utf8)
+    // MARK: - Azure Endpoint
 
-        // Delete existing key first
+    static func saveAzureEndpoint(_ endpoint: String) throws {
+        try saveKeychainItem(endpoint, account: endpointAccount)
+    }
+
+    static func retrieveAzureEndpoint() -> String? {
+        retrieveKeychainItem(account: endpointAccount)
+    }
+
+    static func deleteAzureEndpoint() {
+        deleteKeychainItem(account: endpointAccount)
+    }
+
+    // MARK: - Azure API Key
+
+    static func saveAzureAPIKey(_ key: String) throws {
+        try saveKeychainItem(key, account: keyAccount)
+    }
+
+    static func retrieveAzureAPIKey() -> String? {
+        retrieveKeychainItem(account: keyAccount)
+    }
+
+    static func hasAzureAPIKey() -> Bool {
+        retrieveAzureAPIKey() != nil && retrieveAzureEndpoint() != nil
+    }
+
+    static func deleteAzureAPIKey() {
+        deleteKeychainItem(account: keyAccount)
+    }
+
+    // MARK: - Keychain Helpers
+
+    private static func saveKeychainItem(_ value: String, account: String) throws {
+        let data = Data(value.utf8)
+
         let deleteQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -21,7 +55,6 @@ enum APIKeyManager {
         ]
         SecItemDelete(deleteQuery as CFDictionary)
 
-        // Add new key
         let addQuery: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -36,7 +69,7 @@ enum APIKeyManager {
         }
     }
 
-    static func retrieveAPIKey() -> String? {
+    private static func retrieveKeychainItem(account: String) -> String? {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -55,7 +88,7 @@ enum APIKeyManager {
         return String(data: data, encoding: .utf8)
     }
 
-    static func deleteAPIKey() {
+    private static func deleteKeychainItem(account: String) {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -64,17 +97,13 @@ enum APIKeyManager {
         SecItemDelete(query as CFDictionary)
     }
 
-    static func hasAPIKey() -> Bool {
-        retrieveAPIKey() != nil
-    }
-
     enum APIKeyError: LocalizedError {
         case saveFailed(OSStatus)
 
         var errorDescription: String? {
             switch self {
             case .saveFailed(let status):
-                return "Failed to save API key (status: \(status))"
+                return "Failed to save credential (status: \(status))"
             }
         }
     }

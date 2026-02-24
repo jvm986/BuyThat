@@ -12,88 +12,34 @@ enum ReceiptMatchingService {
         store: Store,
         context: ModelContext
     ) -> [MatchedReceiptItem] {
-        let products = (try? context.fetch(FetchDescriptor<Product>())) ?? []
-        let brands = (try? context.fetch(FetchDescriptor<Brand>())) ?? []
+        let allStoreInfo = (try? context.fetch(FetchDescriptor<StoreVariantInfo>())) ?? []
+        let storeSpecific = allStoreInfo.filter { $0.store == store }
 
         return parsedItems.map { parsedItem in
-            let matchResult = findMatch(
-                for: parsedItem,
-                store: store,
-                products: products,
-                brands: brands
+            let matchResult = findMatchByAlias(
+                receiptText: parsedItem.receiptText,
+                storeVariantInfos: storeSpecific
             )
-
             return MatchedReceiptItem(parsedItem: parsedItem, matchResult: matchResult)
         }
     }
 
-    private static func findMatch(
-        for item: ParsedReceiptItem,
-        store: Store,
-        products: [Product],
-        brands: [Brand]
+    private static func findMatchByAlias(
+        receiptText: String,
+        storeVariantInfos: [StoreVariantInfo]
     ) -> MatchedReceiptItem.MatchResult {
-        guard let matchedProductName = item.matchedProductName else {
-            return .noMatch(suggestedName: cleanReceiptText(item.receiptText))
-        }
-
-        // Find product by name (exact first, then case-insensitive)
-        guard let product = findProduct(named: matchedProductName, in: products) else {
-            return .noMatch(suggestedName: matchedProductName)
-        }
-
-        // Find matching variant (by brand if provided)
-        let variant = findVariant(for: product, brandName: item.matchedBrandName, brands: brands)
-
-        // Find existing StoreVariantInfo for this variant at this store
-        let storeInfo: StoreVariantInfo?
-        if let variant = variant {
-            storeInfo = variant.storeInfo?.first { $0.store == store }
-        } else {
-            storeInfo = nil
-        }
-
-        return .matched(product: product, variant: variant, storeInfo: storeInfo)
-    }
-
-    private static func findProduct(named name: String, in products: [Product]) -> Product? {
-        // Exact match first
-        if let exact = products.first(where: { $0.name == name }) {
-            return exact
-        }
-        // Case-insensitive fallback
-        return products.first { $0.name.localizedCaseInsensitiveCompare(name) == .orderedSame }
-    }
-
-    private static func findVariant(
-        for product: Product,
-        brandName: String?,
-        brands: [Brand]
-    ) -> ProductVariant? {
-        guard let variants = product.variants, !variants.isEmpty else {
-            return nil
-        }
-
-        // If brand name provided, try to match
-        if let brandName = brandName {
-            let matchedBrand = brands.first { $0.name.localizedCaseInsensitiveCompare(brandName) == .orderedSame }
-            if let matchedBrand = matchedBrand {
-                if let variant = variants.first(where: { $0.brand == matchedBrand }) {
-                    return variant
+        let normalized = receiptText.trimmingCharacters(in: .whitespaces).lowercased()
+        for storeInfo in storeVariantInfos {
+            if storeInfo.receiptAliases.contains(where: { $0.lowercased() == normalized }) {
+                if let variant = storeInfo.variant, let product = variant.product {
+                    return .matched(product: product, variant: variant, storeInfo: storeInfo)
                 }
             }
         }
-
-        // If product has exactly one variant, use it
-        if variants.count == 1 {
-            return variants.first
-        }
-
-        return nil
+        return .noMatch(suggestedName: cleanReceiptText(receiptText))
     }
 
     private static func cleanReceiptText(_ text: String) -> String {
-        // Basic cleanup: capitalize words, remove excess whitespace
         text.split(separator: " ")
             .map { $0.capitalized }
             .joined(separator: " ")
@@ -128,7 +74,6 @@ enum ReceiptMatchingService {
             let quantity = item.effectiveQuantity
 
             if let product, let variant, let storeInfo {
-                // Case 1: Product + variant + storeInfo → update existing price
                 storeInfo.pricePerUnit = price
                 storeInfo.dateModified = Date()
                 resolvedProduct = product
@@ -136,7 +81,6 @@ enum ReceiptMatchingService {
                 resolvedStoreInfo = storeInfo
                 pricesUpdated += 1
             } else if let product, let variant {
-                // Case 2: Product + variant, no storeInfo → create new StoreVariantInfo
                 let newStoreInfo = StoreVariantInfo(
                     variant: variant,
                     store: store,
@@ -148,7 +92,6 @@ enum ReceiptMatchingService {
                 resolvedStoreInfo = newStoreInfo
                 pricesUpdated += 1
             } else if let product {
-                // Case 3: Product only → find/create variant, create StoreVariantInfo
                 let targetVariant: ProductVariant
                 if let variants = product.variants, variants.count == 1, let single = variants.first {
                     targetVariant = single
@@ -167,7 +110,6 @@ enum ReceiptMatchingService {
                 resolvedStoreInfo = newStoreInfo
                 pricesUpdated += 1
             } else {
-                // Case 4: No product → create product + variant + StoreVariantInfo
                 let newProduct = Product(name: item.editedProductName)
                 context.insert(newProduct)
 
@@ -186,6 +128,9 @@ enum ReceiptMatchingService {
                 productsCreated += 1
             }
 
+            // Auto-learn: add receipt text as alias for future matching
+            resolvedStoreInfo?.addReceiptAlias(item.parsedItem.receiptText)
+
             let tripItem = ShoppingTripItem(
                 trip: trip,
                 product: resolvedProduct,
@@ -194,7 +139,6 @@ enum ReceiptMatchingService {
                 quantity: quantity,
                 pricePerItem: item.parsedItem.price,
                 unitPrice: item.parsedItem.unitPrice,
-                unitPriceUnit: item.parsedItem.unitPriceUnit,
                 receiptText: item.parsedItem.receiptText,
                 productName: item.editedProductName,
                 sortOrder: sortIndex

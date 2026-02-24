@@ -13,6 +13,7 @@ final class StoreVariantInfo {
     var pricePerUnit: Decimal?
     var dateCreated: Date
     var dateModified: Date
+    var receiptAliases: [String] = []
 
     // Store the conversion factor to handle deleted pricingUnit references
     // This is the conversionToBase value from the pricingUnit at the time of price entry
@@ -48,6 +49,14 @@ final class StoreVariantInfo {
 }
 
 extension StoreVariantInfo {
+    func addReceiptAlias(_ text: String) {
+        let normalized = text.trimmingCharacters(in: .whitespaces).lowercased()
+        guard !normalized.isEmpty else { return }
+        if !receiptAliases.contains(where: { $0.lowercased() == normalized }) {
+            receiptAliases.append(text.trimmingCharacters(in: .whitespaces))
+        }
+    }
+
     var displayName: String {
         var parts: [String] = []
         if let variantName = variant?.displayName {
