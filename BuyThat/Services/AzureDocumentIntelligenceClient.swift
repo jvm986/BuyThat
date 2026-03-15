@@ -210,10 +210,10 @@ enum AzureDocumentIntelligenceClient {
         guard let dict = field as? [String: Any] else { return nil }
         if let currencyObj = dict["valueCurrency"] as? [String: Any],
            let amount = currencyObj["amount"] as? Double {
-            return Decimal(amount)
+            return Decimal(string: "\(amount)")
         }
         if let number = dict["valueNumber"] as? Double {
-            return Decimal(number)
+            return Decimal(string: "\(number)")
         }
         return nil
     }

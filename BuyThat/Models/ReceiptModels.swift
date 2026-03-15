@@ -6,6 +6,16 @@
 import Foundation
 import SwiftData
 
+// MARK: - Quantity Formatting
+
+func formatQuantity(_ value: Double) -> String {
+    let rounded = (value * 1000).rounded() / 1000
+    if rounded.truncatingRemainder(dividingBy: 1) == 0 {
+        return "\(Int(rounded))"
+    }
+    return String(format: "%g", rounded)
+}
+
 // MARK: - Parsed Receipt Models
 
 struct ParsedReceipt {
@@ -55,7 +65,7 @@ struct MatchedReceiptItem: Identifiable {
     var editedProductName: String
     var editedPrice: String
     var editedQuantity: String
-    var editedUnit: MeasurementUnit
+    var editedPurchaseUnit: PurchaseUnit?
 
     // User override for store variant info selection
     var overrideStoreInfo: StoreVariantInfo?
@@ -66,10 +76,8 @@ struct MatchedReceiptItem: Identifiable {
         self.parsedItem = parsedItem
         self.matchResult = matchResult
         self.editedPrice = "\(parsedItem.priceForStorage)"
-        self.editedQuantity = parsedItem.quantity.truncatingRemainder(dividingBy: 1) == 0
-            ? "\(Int(parsedItem.quantity))"
-            : "\(parsedItem.quantity)"
-        self.editedUnit = .units
+        self.editedQuantity = formatQuantity(parsedItem.quantity)
+        self.editedPurchaseUnit = nil
         switch matchResult {
         case .matched(let product, _, _):
             self.editedProductName = product.name
@@ -131,6 +139,5 @@ struct MatchedReceiptItem: Identifiable {
 
 struct ReceiptSaveResult {
     let pricesUpdated: Int
-    let productsCreated: Int
     let shoppingTrip: ShoppingTrip
 }
