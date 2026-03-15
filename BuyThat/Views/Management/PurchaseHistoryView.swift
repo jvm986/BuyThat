@@ -318,17 +318,7 @@ struct ShoppingTripItemDetailView: View {
                         }
                 }
 
-                Picker("Unit", selection: $item.unitPriceUnit) {
-                    Text("None").tag(String?.none)
-                    ForEach(MeasurementUnit.groupedByFamily, id: \.family) { group in
-                        ForEach(group.units, id: \.self) { unit in
-                            Text(unit.displayLabel).tag(Optional(unit.rawValue))
-                        }
-                    }
-                }
-                .onChange(of: item.unitPriceUnit) {
-                    try? modelContext.save()
-                }
+                unitPriceUnitPickerView
 
                 LabeledContent("Line Total") {
                     Text(item.formattedLineTotal)
@@ -354,6 +344,47 @@ struct ShoppingTripItemDetailView: View {
                 editingStoreVariantInfo = nil
             }
             .presentationDragIndicator(.visible)
+        }
+    }
+
+    @ViewBuilder
+    private var unitPriceUnitPickerView: some View {
+        let variant = item.variant
+        let baseUnit = variant?.baseUnit
+        let resolvedUnitName: String? = baseUnit == .units
+            ? (variant?.unitName ?? variant?.product?.defaultUnitName)
+            : nil
+        let baseLabel = resolvedUnitName ?? baseUnit?.symbol ?? "unit"
+
+        if let variant, let purchaseUnits = variant.purchaseUnits, !purchaseUnits.isEmpty {
+            Picker("Unit", selection: $item.unitPriceUnit) {
+                Text(baseLabel).tag(String?.none)
+                ForEach(purchaseUnits) { unit in
+                    Text(unit.displayName).tag(Optional(unit.displayName))
+                }
+            }
+            .onChange(of: item.unitPriceUnit) {
+                try? modelContext.save()
+            }
+        } else if let baseUnit {
+            HStack {
+                Text("Unit")
+                Spacer()
+                Text(baseLabel)
+                    .foregroundStyle(.secondary)
+            }
+        } else {
+            Picker("Unit", selection: $item.unitPriceUnit) {
+                Text("None").tag(String?.none)
+                ForEach(MeasurementUnit.groupedByFamily, id: \.family) { group in
+                    ForEach(group.units, id: \.self) { unit in
+                        Text(unit.displayLabel).tag(Optional(unit.rawValue))
+                    }
+                }
+            }
+            .onChange(of: item.unitPriceUnit) {
+                try? modelContext.save()
+            }
         }
     }
 }

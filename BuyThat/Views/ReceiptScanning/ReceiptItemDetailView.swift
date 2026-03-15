@@ -52,9 +52,7 @@ struct ReceiptItemDetailView: View {
             }
             if item.parsedItem.quantity > 1 {
                 LabeledContent("Quantity") {
-                    Text(item.parsedItem.quantity.truncatingRemainder(dividingBy: 1) == 0
-                         ? "\(Int(item.parsedItem.quantity))"
-                         : "\(item.parsedItem.quantity)")
+                    Text(formatQuantity(item.parsedItem.quantity))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -114,6 +112,34 @@ struct ReceiptItemDetailView: View {
         }
     }
 
+    // MARK: - Unit Picker
+
+    @ViewBuilder
+    private var unitPickerView: some View {
+        let effectiveVariant = item.effectiveVariant
+        let baseUnit = effectiveVariant?.baseUnit
+        let resolvedUnitName: String? = baseUnit == .units
+            ? (effectiveVariant?.unitName ?? effectiveVariant?.product?.defaultUnitName)
+            : nil
+        let baseLabel = resolvedUnitName ?? baseUnit?.symbol ?? "unit"
+
+        if let variant = effectiveVariant, let units = variant.purchaseUnits, !units.isEmpty {
+            Picker("Unit", selection: $item.editedPurchaseUnit) {
+                Text(baseLabel).tag(nil as PurchaseUnit?)
+                ForEach(units) { unit in
+                    Text(unit.displayName).tag(unit as PurchaseUnit?)
+                }
+            }
+        } else if let baseUnit {
+            HStack {
+                Text("Unit")
+                Spacer()
+                Text(baseLabel)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     // MARK: - Price & Quantity Section
 
     private var priceQuantitySection: some View {
@@ -136,13 +162,7 @@ struct ReceiptItemDetailView: View {
                     .frame(maxWidth: 100)
             }
 
-            Picker("Unit", selection: $item.editedUnit) {
-                ForEach(MeasurementUnit.groupedByFamily, id: \.family) { group in
-                    ForEach(group.units, id: \.self) { unit in
-                        Text(unit.displayLabel).tag(unit)
-                    }
-                }
-            }
+            unitPickerView
 
             if let storeInfo = item.effectiveStoreInfo,
                let currentPrice = storeInfo.pricePerUnit {
